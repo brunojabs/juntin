@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "socket.io": "^2.3.0"
+  },
+  "name": "juntin-server",
+  "version": "1.0.0",
+  "description": "The server for Juntin platform",
+  "main": "index.js",
+  "author": "Bruno Gomes",
+  "license": "MIT"
+}
