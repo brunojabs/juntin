@@ -38,6 +38,16 @@ decoder =
         (D.at [ "data", "text" ] D.string)
 
 
+sendPlayerMessage : PlayerMsg -> Cmd msg
+sendPlayerMessage playerMsg =
+    case playerMsg of
+        Play ->
+            emitPlayerMsg "play"
+
+        Pause ->
+            emitPlayerMsg "pause"
+
+
 
 ---- UPDATE ----
 
@@ -46,8 +56,14 @@ type Msg
     = Join
     | SendData
     | ReceiveData E.Value
-    | Pause
     | TextChanged String
+    | PlayVideo
+    | PauseVideo
+
+
+type PlayerMsg
+    = Play
+    | Pause
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -59,19 +75,17 @@ update msg model =
         Join ->
             ( model, joinRoom "Sala2" )
 
-        Pause ->
+        PauseVideo ->
             let
-                paused =
-                    if model.paused then
-                        False
-
-                    else
-                        True
-
                 newModel =
-                    { model | paused = paused }
+                    { model | paused = True }
             in
-            ( newModel, sendData (encode newModel) )
+            ( newModel
+            , Cmd.batch
+                [ sendData (encode newModel)
+                , sendPlayerMessage Pause
+                ]
+            )
 
         TextChanged newText ->
             let
@@ -83,10 +97,26 @@ update msg model =
         ReceiveData value ->
             case D.decodeValue decoder value of
                 Ok newModel ->
-                    ( newModel, Cmd.none )
+                    if newModel.paused then
+                        ( newModel, sendPlayerMessage Pause )
+
+                    else
+                        ( newModel, sendPlayerMessage Play )
 
                 Err e ->
                     ( model, Cmd.none )
+
+        PlayVideo ->
+            let
+                newModel =
+                    { model | paused = False }
+            in
+            ( newModel
+            , Cmd.batch
+                [ sendData (encode newModel)
+                , sendPlayerMessage Play
+                ]
+            )
 
 
 
@@ -96,8 +126,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ img [ src "/logo.svg" ] []
-        , h1 [] [ text "Your Elm App is working!" ]
+        [ div [ id "player" ] []
         , h2 []
             [ text
                 ("Is Paused: "
@@ -110,14 +139,8 @@ view model =
                 )
             ]
         , h3 [] [ text model.text ]
-        , button [ onClick Pause ] [ text "Pause" ]
-        , input
-            [ type_ "text"
-            , placeholder "Draft"
-            , onInput TextChanged
-            , value model.text
-            ]
-            []
+        , button [ onClick PauseVideo ] [ text "Pause" ]
+        , button [ onClick PlayVideo ] [ text "Play" ]
         ]
 
 
@@ -129,6 +152,9 @@ port joinRoom : String -> Cmd msg
 
 
 port sendData : E.Value -> Cmd msg
+
+
+port emitPlayerMsg : String -> Cmd msg
 
 
 port dataReceiver : (E.Value -> msg) -> Sub msg
