@@ -18,9 +18,15 @@ type alias Model =
     }
 
 
+type alias PlayerMsgPayload =
+    { message : PlayerMsg
+    , data : String
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
-    ( { paused = True, text = "" }, joinRoom "Sala2" )
+    ( { paused = True, text = "" }, Cmd.batch [ joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ] )
 
 
 encode : Model -> E.Value
@@ -38,14 +44,39 @@ decoder =
         (D.at [ "data", "text" ] D.string)
 
 
-sendPlayerMessage : PlayerMsg -> Cmd msg
-sendPlayerMessage playerMsg =
-    case playerMsg of
+encodePlayerMsg : PlayerMsgPayload -> E.Value
+encodePlayerMsg msgPayload =
+    E.object
+        [ ( "message", E.string (playMsgToString msgPayload.message) )
+        , ( "data", E.string msgPayload.data )
+        ]
+
+
+playMsgToString : PlayerMsg -> String
+playMsgToString msg =
+    case msg of
         Play ->
-            emitPlayerMsg "play"
+            "play"
 
         Pause ->
-            emitPlayerMsg "pause"
+            "pause"
+
+        LoadVideo _ ->
+            "loadVideo"
+
+
+sendPlayerMessage : PlayerMsg -> Cmd msg
+sendPlayerMessage playerMsg =
+    let
+        msg =
+            case playerMsg of
+                LoadVideo videoID ->
+                    { message = LoadVideo videoID, data = videoID }
+
+                _ ->
+                    { message = playerMsg, data = "" }
+    in
+    emitPlayerMsg (encodePlayerMsg msg)
 
 
 
@@ -56,14 +87,15 @@ type Msg
     = Join
     | SendData
     | ReceiveData E.Value
+    | ReceivePlayerMsg String
     | TextChanged String
-    | PlayVideo
-    | PauseVideo
+    | SetVideo
 
 
 type PlayerMsg
     = Play
     | Pause
+    | LoadVideo String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -75,15 +107,11 @@ update msg model =
         Join ->
             ( model, joinRoom "Sala2" )
 
-        PauseVideo ->
-            let
-                newModel =
-                    { model | paused = True }
-            in
-            ( newModel
+        SetVideo ->
+            ( model
             , Cmd.batch
-                [ sendData (encode newModel)
-                , sendPlayerMessage Pause
+                [ sendData (encode model)
+                , sendPlayerMessage (LoadVideo model.text)
                 ]
             )
 
@@ -92,31 +120,55 @@ update msg model =
                 newModel =
                     { model | text = newText }
             in
-            ( newModel, sendData (encode newModel) )
+            ( newModel, Cmd.none )
 
         ReceiveData value ->
             case D.decodeValue decoder value of
                 Ok newModel ->
+                    let
+                        msgs =
+                            if model.text == newModel.text then
+                                []
+
+                            else
+                                [ sendPlayerMessage (LoadVideo newModel.text) ]
+                    in
                     if newModel.paused then
-                        ( newModel, sendPlayerMessage Pause )
+                        ( newModel, Cmd.batch (sendPlayerMessage Pause :: msgs) )
 
                     else
-                        ( newModel, sendPlayerMessage Play )
+                        ( newModel, Cmd.batch (sendPlayerMessage Play :: msgs) )
 
                 Err e ->
                     ( model, Cmd.none )
 
-        PlayVideo ->
-            let
-                newModel =
-                    { model | paused = False }
-            in
-            ( newModel
-            , Cmd.batch
-                [ sendData (encode newModel)
-                , sendPlayerMessage Play
-                ]
-            )
+        ReceivePlayerMsg playerMsg ->
+            if playerMsg == "playing" then
+                let
+                    newModel =
+                        { model | paused = False }
+                in
+                ( newModel
+                , Cmd.batch
+                    [ sendData (encode newModel)
+                    , sendPlayerMessage Play
+                    ]
+                )
+
+            else if playerMsg == "paused" then
+                let
+                    newModel =
+                        { model | paused = True }
+                in
+                ( newModel
+                , Cmd.batch
+                    [ sendData (encode newModel)
+                    , sendPlayerMessage Pause
+                    ]
+                )
+
+            else
+                ( model, Cmd.none )
 
 
 
@@ -139,8 +191,14 @@ view model =
                 )
             ]
         , h3 [] [ text model.text ]
-        , button [ onClick PauseVideo ] [ text "Pause" ]
-        , button [ onClick PlayVideo ] [ text "Play" ]
+        , input
+            [ type_ "text"
+            , placeholder "Video ID"
+            , onInput TextChanged
+            , value model.text
+            ]
+            []
+        , button [ onClick SetVideo ] [ text "Set Video ID" ]
         ]
 
 
@@ -154,10 +212,13 @@ port joinRoom : String -> Cmd msg
 port sendData : E.Value -> Cmd msg
 
 
-port emitPlayerMsg : String -> Cmd msg
+port emitPlayerMsg : E.Value -> Cmd msg
 
 
 port dataReceiver : (E.Value -> msg) -> Sub msg
+
+
+port playerMsgReceiver : (String -> msg) -> Sub msg
 
 
 
@@ -166,7 +227,7 @@ port dataReceiver : (E.Value -> msg) -> Sub msg
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    dataReceiver ReceiveData
+    Sub.batch [ dataReceiver ReceiveData, playerMsgReceiver ReceivePlayerMsg ]
 
 
 

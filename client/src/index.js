@@ -31,21 +31,35 @@ socket.on('syncData', function(msg){
 
 let player;
 
-player = YouTubePlayer('player');
-player.loadVideoById('hBCUuSr-0Nk', 150);
+player = YouTubePlayer('player', { playerVars: { 'autoplay': 0 }});
 
-app.ports.emitPlayerMsg.subscribe(function(message) {
+app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
   switch(message) {
     case 'play':
-      player.playVideo();
+        player.playVideo();
 
       break;
     case 'pause':
-      console.log('pause');
-      player.pauseVideo()
+        player.pauseVideo()
 
       break;
+    case 'loadVideo':
+      player.cueVideoById(data);
     default:
       // code block
   }
+});
+
+const stateNames = {
+  '-1': 'unstarted',
+  0: 'ended',
+  1: 'playing',
+  2: 'paused',
+  3: 'buffering',
+  5: 'video cued'
+};
+
+player.on('stateChange', ({ data }) => {
+  console.log(data);
+  app.ports.playerMsgReceiver.send(stateNames[data] || "");
 });
