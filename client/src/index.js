@@ -17,6 +17,7 @@ serviceWorker.unregister();
 var socket = io('localhost:3000');
 
 app.ports.sendData.subscribe(function(message) {
+  console.log('dataSent', message)
   socket.emit('sendData', message);
 });
 
@@ -45,21 +46,24 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
       break;
     case 'loadVideo':
       player.cueVideoById(data);
+
+      break;
     default:
-      // code block
+      break;
   }
 });
 
 const stateNames = {
-  '-1': 'unstarted',
-  0: 'ended',
-  1: 'playing',
-  2: 'paused',
-  3: 'buffering',
-  5: 'video cued'
+  '-1': 'Unstarted',
+  0: 'Ended',
+  1: 'Playing',
+  2: 'Paused',
+  3: 'Buffering',
+  5: 'VideoCued'
 };
 
 player.on('stateChange', ({ data }) => {
-  console.log(data);
+
+  console.log('stateChange', stateNames[data])
   app.ports.playerMsgReceiver.send(stateNames[data] || "");
 });

@@ -13,7 +13,7 @@ import Json.Encode as E
 
 
 type alias Model =
-    { paused : Bool
+    { playerState : PlayerState
     , text : String
     }
 
@@ -26,13 +26,13 @@ type alias PlayerMsgPayload =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { paused = True, text = "" }, Cmd.batch [ joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ] )
+    ( { playerState = Unstarted, text = "" }, Cmd.batch [ joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ] )
 
 
 encode : Model -> E.Value
 encode model =
     E.object
-        [ ( "data", E.object [ ( "paused", E.bool model.paused ), ( "text", E.string model.text ) ] )
+        [ ( "data", E.object [ ( "playerState", E.string (stringFromPlayerState model.playerState) ), ( "text", E.string model.text ) ] )
         , ( "roomID", E.string "Sala2" )
         ]
 
@@ -40,7 +40,7 @@ encode model =
 decoder : D.Decoder Model
 decoder =
     D.map2 Model
-        (D.at [ "data", "paused" ] D.bool)
+        (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
         (D.at [ "data", "text" ] D.string)
 
 
@@ -50,6 +50,56 @@ encodePlayerMsg msgPayload =
         [ ( "message", E.string (playMsgToString msgPayload.message) )
         , ( "data", E.string msgPayload.data )
         ]
+
+
+playerStateFromString : String -> PlayerState
+playerStateFromString stateString =
+    case stateString of
+        "Unstarted" ->
+            Unstarted
+
+        "Ended" ->
+            Ended
+
+        "Playing" ->
+            Playing
+
+        "Paused" ->
+            Paused
+
+        "Buffering" ->
+            Buffering
+
+        "VideoCued" ->
+            VideoCued
+
+        _ ->
+            Unknown
+
+
+stringFromPlayerState : PlayerState -> String
+stringFromPlayerState playerState =
+    case playerState of
+        Unstarted ->
+            "Unstarted"
+
+        Ended ->
+            "Ended"
+
+        Playing ->
+            "Playing"
+
+        Paused ->
+            "Paused"
+
+        Buffering ->
+            "Buffering"
+
+        VideoCued ->
+            "VideoCued"
+
+        Unknown ->
+            "Unknown"
 
 
 playMsgToString : PlayerMsg -> String
@@ -98,6 +148,16 @@ type PlayerMsg
     | LoadVideo String
 
 
+type PlayerState
+    = Unstarted
+    | Ended
+    | Playing
+    | Paused
+    | Buffering
+    | VideoCued
+    | Unknown
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -133,42 +193,28 @@ update msg model =
                             else
                                 [ sendPlayerMessage (LoadVideo newModel.text) ]
                     in
-                    if newModel.paused then
-                        ( newModel, Cmd.batch (sendPlayerMessage Pause :: msgs) )
+                    case newModel.playerState of
+                        Playing ->
+                            ( newModel, Cmd.batch (sendPlayerMessage Play :: msgs) )
 
-                    else
-                        ( newModel, Cmd.batch (sendPlayerMessage Play :: msgs) )
+                        Paused ->
+                            ( newModel, Cmd.batch (sendPlayerMessage Pause :: msgs) )
+
+                        _ ->
+                            ( newModel, Cmd.batch msgs )
 
                 Err e ->
                     ( model, Cmd.none )
 
         ReceivePlayerMsg playerMsg ->
-            if playerMsg == "playing" then
-                let
-                    newModel =
-                        { model | paused = False }
-                in
-                ( newModel
-                , Cmd.batch
-                    [ sendData (encode newModel)
-                    , sendPlayerMessage Play
-                    ]
-                )
+            let
+                newPlayerState =
+                    playerStateFromString playerMsg
 
-            else if playerMsg == "paused" then
-                let
-                    newModel =
-                        { model | paused = True }
-                in
-                ( newModel
-                , Cmd.batch
-                    [ sendData (encode newModel)
-                    , sendPlayerMessage Pause
-                    ]
-                )
-
-            else
-                ( model, Cmd.none )
+                newModel =
+                    { model | playerState = newPlayerState }
+            in
+            ( newModel, sendData (encode newModel) )
 
 
 
@@ -179,17 +225,6 @@ view : Model -> Html Msg
 view model =
     div []
         [ div [ id "player" ] []
-        , h2 []
-            [ text
-                ("Is Paused: "
-                    ++ (if model.paused then
-                            "Yes"
-
-                        else
-                            "No"
-                       )
-                )
-            ]
         , h3 [] [ text model.text ]
         , input
             [ type_ "text"
