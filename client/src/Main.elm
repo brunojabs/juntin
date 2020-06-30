@@ -1,12 +1,15 @@
 port module Main exposing (..)
 
 import Browser
+import Browser.Navigation exposing (Key)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as D
 import Json.Encode as E
 import LinkGenerator
+import Url exposing (Url)
+import Url.Parser as UrlParser
 
 
 
@@ -17,6 +20,7 @@ type alias Model =
     { playerState : PlayerState
     , text : String
     , roomID : String
+    , currentRoute : Route
     }
 
 
@@ -26,10 +30,49 @@ type alias PlayerMsgPayload =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { playerState = Unstarted, text = "", roomID = "" }
-    , Cmd.batch [ generateRoom, joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ]
+type Route
+    = Root
+    | Room String
+    | NotFound
+
+
+route : UrlParser.Parser (Route -> a) a
+route =
+    UrlParser.oneOf
+        [ UrlParser.map Root UrlParser.top
+        , UrlParser.map Room UrlParser.string
+        ]
+
+
+parseRoute : Url -> Route
+parseRoute url =
+    UrlParser.parse route url |> Maybe.withDefault NotFound
+
+
+init : flags -> Url -> Key -> ( Model, Cmd Msg )
+init _ url _ =
+    let
+        initialRoute =
+            parseRoute url
+
+        roomID =
+            case initialRoute of
+                Room a ->
+                    a
+
+                _ ->
+                    ""
+
+        joinCmd =
+            case initialRoute of
+                Room b ->
+                    joinRoom b
+
+                _ ->
+                    Cmd.none
+    in
+    ( { playerState = Unstarted, text = "", roomID = roomID, currentRoute = initialRoute }
+    , Cmd.batch [ joinCmd, sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ]
     )
 
 
@@ -37,16 +80,17 @@ encode : Model -> E.Value
 encode model =
     E.object
         [ ( "data", E.object [ ( "playerState", E.string (stringFromPlayerState model.playerState) ), ( "text", E.string model.text ) ] )
-        , ( "roomID", E.string "Sala2" )
+        , ( "roomID", E.string model.roomID )
         ]
 
 
 decoder : D.Decoder Model
 decoder =
-    D.map3 Model
+    D.map4 Model
         (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
         (D.at [ "data", "text" ] D.string)
-        (D.at [ "data", "roomID" ] D.string)
+        (D.at [ "roomID" ] D.string)
+        (D.succeed NotFound)
 
 
 encodePlayerMsg : PlayerMsgPayload -> E.Value
@@ -150,6 +194,8 @@ type Msg
     | TextChanged String
     | SetVideo
     | LinkGenerated String
+    | UrlChanged
+    | UrlRequested
 
 
 type PlayerMsg
@@ -214,6 +260,10 @@ update msg model =
                             ( newModel, Cmd.batch msgs )
 
                 Err e ->
+                    let
+                        _ =
+                            Debug.log "error" e
+                    in
                     ( model, Cmd.none )
 
         ReceivePlayerMsg playerMsg ->
@@ -226,13 +276,23 @@ update msg model =
             in
             ( newModel, sendData (encode newModel) )
 
+        _ ->
+            ( model, Cmd.none )
+
 
 
 ---- VIEW ----
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
+    { title = "Juntin"
+    , body = [ mainView model ]
+    }
+
+
+mainView : Model -> Html Msg
+mainView model =
     div []
         [ div [ id "player" ] []
         , h3 [] [ text model.text ]
@@ -281,9 +341,11 @@ subscriptions _ =
 
 main : Program () Model Msg
 main =
-    Browser.element
-        { view = view
-        , init = \_ -> init
+    Browser.application
+        { init = init
+        , view = view
         , update = update
         , subscriptions = subscriptions
+        , onUrlRequest = \_ -> UrlRequested
+        , onUrlChange = \_ -> UrlChanged
         }
