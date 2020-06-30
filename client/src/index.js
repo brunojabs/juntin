@@ -17,7 +17,7 @@ serviceWorker.unregister();
 var socket = io('localhost:3000');
 
 app.ports.sendData.subscribe(function(message) {
-  console.log('dataSent', message)
+  console.log('sendData', message);
   socket.emit('sendData', message);
 });
 
@@ -26,6 +26,7 @@ app.ports.joinRoom.subscribe(function (roomID) {
 });
 
 socket.on('syncData', function(msg){
+  console.log('received', msg);
   app.ports.dataReceiver.send(msg);
 });
 
@@ -63,7 +64,5 @@ const stateNames = {
 };
 
 player.on('stateChange', ({ data }) => {
-
-  console.log('stateChange', stateNames[data])
   app.ports.playerMsgReceiver.send(stateNames[data] || "");
 });

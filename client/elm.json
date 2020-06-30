@@ -11,11 +11,11 @@
             "elm/html": "1.0.0",
             "elm/json": "1.1.2",
             "elm/random": "1.0.0",
+            "elm/url": "1.0.0",
             "elm-community/random-extra": "3.1.0"
         },
         "indirect": {
             "elm/time": "1.0.0",
-            "elm/url": "1.0.0",
             "elm/virtual-dom": "1.0.2",
             "owanturist/elm-union-find": "1.0.0"
         }
