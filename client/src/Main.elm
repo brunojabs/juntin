@@ -6,6 +6,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as D
 import Json.Encode as E
+import LinkGenerator
 
 
 
@@ -15,6 +16,7 @@ import Json.Encode as E
 type alias Model =
     { playerState : PlayerState
     , text : String
+    , roomID : String
     }
 
 
@@ -26,7 +28,9 @@ type alias PlayerMsgPayload =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { playerState = Unstarted, text = "" }, Cmd.batch [ joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ] )
+    ( { playerState = Unstarted, text = "", roomID = "" }
+    , Cmd.batch [ generateRoom, joinRoom "Sala2", sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ]
+    )
 
 
 encode : Model -> E.Value
@@ -39,9 +43,10 @@ encode model =
 
 decoder : D.Decoder Model
 decoder =
-    D.map2 Model
+    D.map3 Model
         (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
         (D.at [ "data", "text" ] D.string)
+        (D.at [ "data", "roomID" ] D.string)
 
 
 encodePlayerMsg : PlayerMsgPayload -> E.Value
@@ -129,17 +134,22 @@ sendPlayerMessage playerMsg =
     emitPlayerMsg (encodePlayerMsg msg)
 
 
+generateRoom : Cmd Msg
+generateRoom =
+    LinkGenerator.generate LinkGenerated
+
+
 
 ---- UPDATE ----
 
 
 type Msg
-    = Join
-    | SendData
+    = SendData
     | ReceiveData E.Value
     | ReceivePlayerMsg String
     | TextChanged String
     | SetVideo
+    | LinkGenerated String
 
 
 type PlayerMsg
@@ -164,9 +174,6 @@ update msg model =
         SendData ->
             ( model, sendData (encode model) )
 
-        Join ->
-            ( model, joinRoom "Sala2" )
-
         SetVideo ->
             ( model
             , Cmd.batch
@@ -181,6 +188,9 @@ update msg model =
                     { model | text = newText }
             in
             ( newModel, Cmd.none )
+
+        LinkGenerated link ->
+            ( { model | roomID = link }, Cmd.none )
 
         ReceiveData value ->
             case D.decodeValue decoder value of
