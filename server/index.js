@@ -12,7 +12,6 @@ io.on('connection', function(socket) {
   });
 
   socket.on('sendData', function (data) {
-    console.log(data)
     socket.broadcast.to(data.roomID).emit('syncData', data );
   });
 });

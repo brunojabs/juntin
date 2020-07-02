@@ -31,11 +31,17 @@ socket.on('syncData', function(msg){
 });
 
 
-let player;
+let player = null;
 
-player = YouTubePlayer('player', { playerVars: { 'autoplay': 0 }});
 
 app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
+  if(!player) {
+    player = YouTubePlayer('player', { playerVars: { 'autoplay': 0 }});
+    player.on('stateChange', ({ data }) => {
+      app.ports.playerMsgReceiver.send(stateNames[data] || "");
+    });
+  }
+
   switch(message) {
     case 'play':
         player.playVideo();
@@ -63,6 +69,3 @@ const stateNames = {
   5: 'VideoCued'
 };
 
-player.on('stateChange', ({ data }) => {
-  app.ports.playerMsgReceiver.send(stateNames[data] || "");
-});
