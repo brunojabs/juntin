@@ -1,10 +1,8 @@
-port module Room exposing (..)
+port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
-import Browser
-import Browser.Navigation exposing (Key)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html, button, div, h3, input, text)
+import Html.Attributes exposing (id, placeholder, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
 
