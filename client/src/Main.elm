@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Browser.Navigation exposing (Key)
+import Home
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -9,6 +10,7 @@ import Json.Decode as D
 import Json.Encode as E
 import LinkGenerator
 import Room
+import Route
 import Url exposing (Url)
 import Url.Parser as UrlParser
 
@@ -23,45 +25,21 @@ type Model
     | NotFound
 
 
-type Route
-    = RootRoute
-    | RoomRoute Room.RoomID
-    | NotFoundRoute
-
-
-route : UrlParser.Parser (Route -> a) a
-route =
-    UrlParser.oneOf
-        [ UrlParser.map RootRoute UrlParser.top
-        , UrlParser.map RoomRoute UrlParser.string
-        ]
-
-
-parseRoute : Url -> Route
-parseRoute url =
-    UrlParser.parse route url |> Maybe.withDefault NotFoundRoute
-
-
 init : flags -> Url -> Key -> ( Model, Cmd Msg )
 init _ url _ =
-    case parseRoute url of
-        RoomRoute roomID ->
+    case Route.parseRoute url of
+        Route.Room roomID ->
             let
                 ( roomModel, roomMsg ) =
                     Room.init roomID
             in
             updateWith Room GotRoomMsg (Room roomModel) ( roomModel, roomMsg )
 
-        RootRoute ->
+        Route.Root ->
             ( Root, Cmd.none )
 
         _ ->
             ( NotFound, Cmd.none )
-
-
-generateRoom : Cmd Msg
-generateRoom =
-    LinkGenerator.generate LinkGenerated
 
 
 
@@ -69,8 +47,8 @@ generateRoom =
 
 
 type Msg
-    = LinkGenerated String
-    | GotRoomMsg Room.Msg
+    = GotRoomMsg Room.Msg
+    | GotHomeMsg Home.Msg
     | UrlChanged
     | UrlRequested
 
@@ -78,9 +56,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model ) of
-        ( LinkGenerated roomID, _ ) ->
-            Room.init roomID |> updateWith Room GotRoomMsg model
-
         ( GotRoomMsg roomMsg, Room room ) ->
             Room.update roomMsg room |> updateWith Room GotRoomMsg model
 
@@ -108,7 +83,7 @@ view model =
                     [ Html.map GotRoomMsg (Room.view room) ]
 
                 Root ->
-                    [ text "Bem vindo ao Juntin" ]
+                    [ Html.map GotHomeMsg Home.view ]
 
                 NotFound ->
                     [ text "Não encontrado" ]
