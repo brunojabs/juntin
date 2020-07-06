@@ -1,7 +1,7 @@
 port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
-import Html exposing (Html, button, div, h3, input, text)
-import Html.Attributes exposing (id, placeholder, type_, value)
+import Html exposing (Html, button, div, h3, img, input, text)
+import Html.Attributes exposing (id, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
@@ -228,7 +228,8 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ id "player" ] []
+        [ img [ src "juntin-logo.png" ] []
+        , div [ id "player" ] []
         , h3 [] [ text model.inputText ]
         , input
             [ type_ "text"

@@ -14,9 +14,10 @@ type Msg
 view : Html Msg
 view =
     div []
-        [ h1 [] [ text "Bem vindo ao Juntin" ]
-        , h2 [] [ text "Plataforma para assistir à videos no Youtube em companhia" ]
-        , button [ onClick GenerateLink ] [ text "Set Video ID" ]
+        [ img [ src "juntin-logo.png" ] []
+        , h1 [] [ text "Bem vindo ao Juntin" ]
+        , h2 [] [ text "Assista junto" ]
+        , button [ onClick GenerateLink ] [ text "Crie uma sala" ]
         ]
 
 

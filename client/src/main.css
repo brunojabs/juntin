@@ -9,11 +9,16 @@
   height: inherit;
 }
 
+* {
+  font-family: "Playfair Display script=latin rev=1";
+	font-weight: 400;
+}
+
 body {
-  font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
   margin: 0;
   text-align: center;
-  color: #293c4b;
+  color: #000000;
+	background-color: #efefef
 }
 
 h1 {
@@ -23,4 +28,18 @@ h1 {
 img {
   margin: 20px 0;
   max-width: 200px;
+}
+
+button {
+	border: 0;
+	text-decoration: underline;
+	cursor: pointer;
+	font-size: 50px;
+	font-weight: 400;
+}
+
+button:hover {
+	text-shadow:  0.05em 0.05em 0 #2cfcfd,
+	-0.05em 0 0 #ff0aff,
+	0.09em 0 0 #ffff0a;
 }
