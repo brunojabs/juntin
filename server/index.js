@@ -6,13 +6,14 @@ io.on('connection', function(socket) {
     socket.join(roomID, () => {
       let rooms = Object.keys(socket.rooms);
 
-      socket.broadcast.to(roomID).emit('connection');
+      socket.emit('joinedRoom', io.sockets.adapter.rooms[roomID].length);
+
       console.log(rooms);
     });
   });
 
   socket.on('sendData', function (data) {
-    socket.broadcast.to(data.roomID).emit('syncData', data );
+    socket.broadcast.to(data.roomID).emit('syncData', data);
   });
 });
 

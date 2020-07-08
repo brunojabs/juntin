@@ -17,7 +17,6 @@ serviceWorker.unregister();
 var socket = io('localhost:3000');
 
 app.ports.sendData.subscribe(function(message) {
-  console.log('sendData', message);
   socket.emit('sendData', message);
 });
 
@@ -26,10 +25,12 @@ app.ports.joinRoom.subscribe(function (roomID) {
 });
 
 socket.on('syncData', function(msg){
-  console.log('received', msg);
   app.ports.dataReceiver.send(msg);
 });
 
+socket.on('joinedRoom', function(data) {
+  app.ports.joinedRoom.send(data);
+});
 
 let player = null;
 
@@ -52,7 +53,14 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
 
       break;
     case 'loadVideo':
-      player.cueVideoById(data);
+      console.log('loadVideo', data);
+      player.cueVideoById(data.videoID, data.time)
+
+      break;
+    case 'getCurrentTime':
+      player.getCurrentTime().then(function(time) {
+        app.ports.playerCurrentTimeReceiver.send(time || 0.0);
+      });
 
       break;
     default:

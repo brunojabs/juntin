@@ -1,249 +1,274 @@
 port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
 import Html exposing (Html, button, div, h3, img, input, text)
-import Html.Attributes exposing (id, placeholder, src, type_, value)
+import Html.Attributes exposing (hidden, id, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
-
-
-type alias Model =
-    { playerState : PlayerState
-    , inputText : String
-    , roomID : String
-    }
-
-
-type alias PlayerMsgPayload =
-    { message : PlayerMsg
-    , data : String
-    }
+import Player exposing (..)
 
 
 type alias RoomID =
     String
 
 
-type PlayerMsg
-    = Play
-    | Pause
-    | LoadVideo String
+type Model
+    = Joining RoomID
+    | WaitingSync RoomID
+    | Loaded LoadedModel
 
 
-type PlayerState
-    = Unstarted
-    | Ended
-    | Playing
-    | Paused
-    | Buffering
-    | VideoCued
-    | Unknown
-
-
-encode : Model -> E.Value
-encode model =
-    E.object
-        [ ( "data"
-          , E.object
-                [ ( "playerState", E.string (stringFromPlayerState model.playerState) )
-                , ( "inputText", E.string model.inputText )
-                ]
-          )
-        , ( "roomID", E.string model.roomID )
-        ]
-
-
-decoder : D.Decoder Model
-decoder =
-    D.map3 Model
-        (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
-        (D.at [ "data", "text" ] D.string)
-        (D.at [ "roomID" ] D.string)
-
-
-encodePlayerMsg : PlayerMsgPayload -> E.Value
-encodePlayerMsg msgPayload =
-    E.object
-        [ ( "message", E.string (playMsgToString msgPayload.message) )
-        , ( "data", E.string msgPayload.data )
-        ]
-
-
-playerStateFromString : String -> PlayerState
-playerStateFromString stateString =
-    case stateString of
-        "Unstarted" ->
-            Unstarted
-
-        "Ended" ->
-            Ended
-
-        "Playing" ->
-            Playing
-
-        "Paused" ->
-            Paused
-
-        "Buffering" ->
-            Buffering
-
-        "VideoCued" ->
-            VideoCued
-
-        _ ->
-            Unknown
-
-
-stringFromPlayerState : PlayerState -> String
-stringFromPlayerState playerState =
-    case playerState of
-        Unstarted ->
-            "Unstarted"
-
-        Ended ->
-            "Ended"
-
-        Playing ->
-            "Playing"
-
-        Paused ->
-            "Paused"
-
-        Buffering ->
-            "Buffering"
-
-        VideoCued ->
-            "VideoCued"
-
-        Unknown ->
-            "Unknown"
-
-
-playMsgToString : PlayerMsg -> String
-playMsgToString msg =
-    case msg of
-        Play ->
-            "play"
-
-        Pause ->
-            "pause"
-
-        LoadVideo _ ->
-            "loadVideo"
-
-
-sendPlayerMessage : PlayerMsg -> Cmd msg
-sendPlayerMessage playerMsg =
-    let
-        msg =
-            case playerMsg of
-                LoadVideo videoID ->
-                    { message = LoadVideo videoID, data = videoID }
-
-                _ ->
-                    { message = playerMsg, data = "" }
-    in
-    emitPlayerMsg (encodePlayerMsg msg)
-
-
-init : RoomID -> ( Model, Cmd Msg )
-init roomID =
-    ( { playerState = Unstarted, inputText = "", roomID = roomID }
-    , Cmd.batch [ joinRoom roomID, sendPlayerMessage (LoadVideo "hBCUuSr-0Nk") ]
-    )
+type alias LoadedModel =
+    { inputText : String
+    , room : Room
+    , roomID : RoomID
+    }
 
 
 type Msg
-    = SendData
+    = SetVideo
+    | TextChanged String
+    | JoinedRoom Int
     | ReceiveData E.Value
     | ReceivePlayerMsg String
-    | TextChanged String
-    | SetVideo
+    | ReceiveCurrentTimeForSync Float
+
+
+type BroadcastMsg
+    = AskForData
+    | SendData Room
+    | Play
+    | Pause
+    | SetCurrentVideo
+
+
+type alias Room =
+    { currentVideoID : String
+    , currentTime : Float
+    , playerState : Player.State
+    }
+
+
+initialModel : RoomID -> Model
+initialModel roomID =
+    Loaded
+        { inputText = ""
+        , room = initialRoom
+        , roomID = roomID
+        }
+
+
+initialRoom =
+    { currentVideoID = "hBCUuSr-0Nk"
+    , currentTime = 0
+    , playerState = Player.Unstarted
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        SendData ->
-            ( model, sendData (encode model) )
+    case ( model, msg ) of
+        ( Joining roomID, JoinedRoom roomSize ) ->
+            if roomSize == 1 then
+                ( initialModel roomID
+                , sendPlayerMessage (Player.LoadVideo initialRoom.currentVideoID initialRoom.currentTime)
+                )
 
-        SetVideo ->
-            ( model
-            , Cmd.batch
-                [ sendData (encode model)
-                , sendPlayerMessage (LoadVideo model.inputText)
-                ]
-            )
+            else
+                ( WaitingSync roomID, sendData (encode roomID AskForData) )
 
-        TextChanged newText ->
-            let
-                newModel =
-                    { model | inputText = newText }
-            in
-            ( newModel, Cmd.none )
-
-        ReceiveData value ->
-            case D.decodeValue decoder value of
-                Ok newModel ->
-                    let
-                        msgs =
-                            if model.inputText == newModel.inputText then
-                                []
-
-                            else
-                                [ sendPlayerMessage (LoadVideo newModel.inputText) ]
-                    in
-                    case newModel.playerState of
-                        Playing ->
-                            ( newModel, Cmd.batch (sendPlayerMessage Play :: msgs) )
-
-                        Paused ->
-                            ( newModel, Cmd.batch (sendPlayerMessage Pause :: msgs) )
-
-                        _ ->
-                            ( newModel, Cmd.batch msgs )
-
-                Err e ->
+        ( WaitingSync roomID, ReceiveData data ) ->
+            case D.decodeValue decoder data of
+                Ok (SendData room) ->
                     let
                         _ =
-                            Debug.log "error" e
+                            Debug.log "room" room
                     in
+                    ( updateModelRoom room (initialModel roomID)
+                    , sendPlayerMessage (Player.LoadVideo room.currentVideoID room.currentTime)
+                    )
+
+                Ok _ ->
                     ( model, Cmd.none )
 
-        ReceivePlayerMsg playerMsg ->
+                Err e ->
+                    ( model, Cmd.none )
+
+        ( Loaded { room, roomID }, ReceiveData data ) ->
+            case D.decodeValue decoder data of
+                Ok AskForData ->
+                    ( model, sendPlayerMessage GetCurrentTime )
+
+                Ok Play ->
+                    ( updateModelRoom room model, sendPlayerMessage Player.Play )
+
+                Ok Pause ->
+                    ( updateModelRoom { room | playerState = Paused } model, sendPlayerMessage Player.Pause )
+
+                Ok _ ->
+                    ( model, Cmd.none )
+
+                Err e ->
+                    ( model, Cmd.none )
+
+        ( Loaded _, TextChanged text ) ->
+            ( updateModelInputText text model, Cmd.none )
+
+        ( Loaded { inputText }, SetVideo ) ->
+            ( updateModelInputText "" model, sendPlayerMessage (Player.LoadVideo inputText 0) )
+
+        ( Loaded { room, roomID }, ReceivePlayerMsg playerMsg ) ->
             let
                 newPlayerState =
                     playerStateFromString playerMsg
 
                 newModel =
-                    { model | playerState = newPlayerState }
+                    updateModelRoom { room | playerState = newPlayerState } model
+
+                cmds =
+                    case newPlayerState of
+                        Playing ->
+                            sendData (encode roomID Play)
+
+                        Paused ->
+                            sendData (encode roomID Pause)
+
+                        _ ->
+                            Cmd.none
             in
-            ( newModel, sendData (encode newModel) )
+            ( model, cmds )
+
+        ( Loaded { roomID, room }, ReceiveCurrentTimeForSync newCurrentTime ) ->
+            let
+                newRoom =
+                    { room | currentTime = newCurrentTime }
+            in
+            ( updateModelRoom newRoom model, sendData (encode roomID (SendData newRoom)) )
+
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 
-
----- VIEW ----
+init : RoomID -> ( Model, Cmd Msg )
+init roomID =
+    ( Joining roomID
+    , joinRoom roomID
+    )
 
 
 view : Model -> Html Msg
 view model =
+    let
+        content =
+            case model of
+                Joining roomID ->
+                    text ("Entrando na sala: " ++ roomID)
+
+                WaitingSync roomID ->
+                    text ("Aguardando infos da sala: " ++ roomID)
+
+                Loaded room ->
+                    div []
+                        [ h3 [] [ text room.inputText ]
+                        , input
+                            [ type_ "text"
+                            , placeholder "Video ID"
+                            , onInput TextChanged
+                            , value room.inputText
+                            ]
+                            []
+                        , button [ onClick SetVideo ] [ text "Set Video ID" ]
+                        ]
+
+        hidePlayer =
+            case model of
+                Loaded _ ->
+                    False
+
+                _ ->
+                    True
+    in
     div []
         [ img [ src "juntin-logo.png" ] []
-        , div [ id "player" ] []
-        , h3 [] [ text model.inputText ]
-        , input
-            [ type_ "text"
-            , placeholder "Video ID"
-            , onInput TextChanged
-            , value model.inputText
-            ]
-            []
-        , button [ onClick SetVideo ] [ text "Set Video ID" ]
+        , div [ id "player", hidden hidePlayer ] []
+        , content
         ]
 
 
+encode : RoomID -> BroadcastMsg -> E.Value
+encode roomID broadcastMsg =
+    case broadcastMsg of
+        SendData room ->
+            E.object
+                [ ( "data"
+                  , E.object
+                        [ ( "playerState", E.string (stringFromPlayerState room.playerState) )
+                        , ( "currentVideoID", E.string room.currentVideoID )
+                        , ( "currentTime", E.float room.currentTime )
+                        ]
+                  )
+                , ( "roomID", E.string roomID )
+                , ( "message", E.string "SendData" )
+                ]
 
----- PORTS ----
+        AskForData ->
+            E.object
+                [ ( "roomID", E.string roomID )
+                , ( "message", E.string "AskForData" )
+                ]
+
+        Play ->
+            E.object
+                [ ( "roomID", E.string roomID )
+                , ( "message", E.string "Play" )
+                ]
+
+        Pause ->
+            E.object
+                [ ( "roomID", E.string roomID )
+                , ( "message", E.string "Pause" )
+                ]
+
+        SetCurrentVideo ->
+            E.object
+                [ ( "roomID", E.string roomID )
+                , ( "message", E.string "SetCurrentVideo" )
+                ]
+
+
+decoder : D.Decoder BroadcastMsg
+decoder =
+    D.field "message" D.string |> D.andThen messageDecoder
+
+
+messageDecoder : String -> D.Decoder BroadcastMsg
+messageDecoder message =
+    case message of
+        "AskForData" ->
+            D.succeed AskForData
+
+        "Play" ->
+            D.succeed Play
+
+        "Pause" ->
+            D.succeed Pause
+
+        "SetCurrentVideo" ->
+            D.succeed SetCurrentVideo
+
+        "SendData" ->
+            roomDecoder |> D.map SendData
+
+        _ ->
+            D.fail ":("
+
+
+roomDecoder : D.Decoder Room
+roomDecoder =
+    D.map3 Room
+        (D.at [ "data", "currentVideoID" ] D.string)
+        (D.at [ "data", "currentTime" ] D.float)
+        (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
 
 
 port joinRoom : String -> Cmd msg
@@ -252,10 +277,21 @@ port joinRoom : String -> Cmd msg
 port sendData : E.Value -> Cmd msg
 
 
+port dataReceiver : (E.Value -> msg) -> Sub msg
+
+
+port playerCurrentTimeReceiver : (Float -> msg) -> Sub msg
+
+
+port joinedRoom : (Int -> msg) -> Sub msg
+
+
 port emitPlayerMsg : E.Value -> Cmd msg
 
 
-port dataReceiver : (E.Value -> msg) -> Sub msg
+sendPlayerMessage : Player.Msg -> Cmd msg
+sendPlayerMessage playerMsg =
+    emitPlayerMsg (Player.encodePlayerMsg playerMsg)
 
 
 port playerMsgReceiver : (String -> msg) -> Sub msg
@@ -263,4 +299,29 @@ port playerMsgReceiver : (String -> msg) -> Sub msg
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ dataReceiver ReceiveData, playerMsgReceiver ReceivePlayerMsg ]
+    Sub.batch
+        [ dataReceiver ReceiveData
+        , playerMsgReceiver ReceivePlayerMsg
+        , playerCurrentTimeReceiver ReceiveCurrentTimeForSync
+        , joinedRoom JoinedRoom
+        ]
+
+
+updateModelRoom : Room -> Model -> Model
+updateModelRoom newRoom oldModel =
+    case oldModel of
+        Loaded loadedModel ->
+            Loaded { loadedModel | room = newRoom }
+
+        _ ->
+            oldModel
+
+
+updateModelInputText : String -> Model -> Model
+updateModelInputText newInput oldModel =
+    case oldModel of
+        Loaded loadedModel ->
+            Loaded { loadedModel | inputText = newInput }
+
+        _ ->
+            oldModel
