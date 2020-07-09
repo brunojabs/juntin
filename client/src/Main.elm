@@ -19,27 +19,21 @@ import Url.Parser as UrlParser
 ---- MODEL ----
 
 
-type Model
-    = Root
+type Page
+    = Home Home.Model
     | Room Room.Model
     | NotFound
 
 
+type alias Model =
+    { page : Page
+    , key : Key
+    }
+
+
 init : flags -> Url -> Key -> ( Model, Cmd Msg )
-init _ url _ =
-    case Route.parseRoute url of
-        Route.Room roomID ->
-            let
-                ( roomModel, roomMsg ) =
-                    Room.init roomID
-            in
-            updateWith Room GotRoomMsg (Room roomModel) ( roomModel, roomMsg )
-
-        Route.Root ->
-            ( Root, Cmd.none )
-
-        _ ->
-            ( NotFound, Cmd.none )
+init _ url key =
+    changeToRoute url key
 
 
 
@@ -49,23 +43,29 @@ init _ url _ =
 type Msg
     = GotRoomMsg Room.Msg
     | GotHomeMsg Home.Msg
-    | UrlChanged
+    | UrlChanged Url
     | UrlRequested
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( msg, model ) of
+    case ( msg, model.page ) of
         ( GotRoomMsg roomMsg, Room room ) ->
             Room.update roomMsg room |> updateWith Room GotRoomMsg model
+
+        ( GotHomeMsg homeMsg, Home home ) ->
+            Home.update homeMsg home |> updateWith Home GotHomeMsg model
+
+        ( UrlChanged url, _ ) ->
+            changeToRoute url model.key
 
         ( _, _ ) ->
             ( model, Cmd.none )
 
 
-updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
+updateWith : (subModel -> Page) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
 updateWith toModel toMsg model ( subModel, subCmd ) =
-    ( toModel subModel
+    ( { model | page = toModel subModel }
     , Cmd.map toMsg subCmd
     )
 
@@ -78,11 +78,11 @@ view : Model -> Browser.Document Msg
 view model =
     let
         body =
-            case model of
+            case model.page of
                 Room room ->
                     [ Html.map GotRoomMsg (Room.view room) ]
 
-                Root ->
+                Home _ ->
                     [ Html.map GotHomeMsg Home.view ]
 
                 NotFound ->
@@ -93,13 +93,34 @@ view model =
     }
 
 
+changeToRoute : Url -> Key -> ( Model, Cmd Msg )
+changeToRoute url key =
+    case Route.parseRoute url of
+        Route.Room roomID ->
+            let
+                ( roomModel, roomMsg ) =
+                    Room.init roomID
+            in
+            updateWith Room GotRoomMsg { key = key, page = Room roomModel } ( roomModel, roomMsg )
+
+        Route.Root ->
+            let
+                ( homeModel, homeMsg ) =
+                    Home.init key
+            in
+            updateWith Home GotHomeMsg { key = key, page = Home homeModel } ( homeModel, homeMsg )
+
+        _ ->
+            ( { key = key, page = NotFound }, Cmd.none )
+
+
 
 ---- SUBSCRIPTIONS ----
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model of
+    case model.page of
         Room room ->
             Sub.map GotRoomMsg (Room.subscriptions room)
 
@@ -119,5 +140,5 @@ main =
         , update = update
         , subscriptions = subscriptions
         , onUrlRequest = \_ -> UrlRequested
-        , onUrlChange = \_ -> UrlChanged
+        , onUrlChange = UrlChanged
         }
