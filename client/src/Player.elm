@@ -18,6 +18,7 @@ type Msg
     = Play
     | Pause
     | LoadVideo String Float
+    | CueVideo String Float
     | GetCurrentTime
 
 
@@ -83,6 +84,9 @@ playMsgToString msg =
         LoadVideo _ _ ->
             "loadVideo"
 
+        CueVideo _ _ ->
+            "cueVideo"
+
         GetCurrentTime ->
             "getCurrentTime"
 
@@ -102,5 +106,11 @@ encodePlayerMsg playerMsg =
         LoadVideo videoID time ->
             E.object
                 [ ( "message", E.string "loadVideo" )
+                , ( "data", E.object [ ( "videoID", E.string videoID ), ( "time", E.float time ) ] )
+                ]
+
+        CueVideo videoID time ->
+            E.object
+                [ ( "message", E.string "cueVideo" )
                 , ( "data", E.object [ ( "videoID", E.string videoID ), ( "time", E.float time ) ] )
                 ]
