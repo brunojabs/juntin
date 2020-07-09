@@ -25,7 +25,7 @@ view : Html Msg
 view =
     div []
         [ img [ src "juntin-logo.png" ] []
-        , h1 [] [ text "Bem vindo ao Juntin" ]
+        , h1 [] [ text "Bem-vindo ao Juntin" ]
         , h2 [] [ text "Assista junto" ]
         , button [ onClick GenerateLink ] [ text "Crie uma sala" ]
         ]
