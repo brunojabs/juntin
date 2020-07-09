@@ -1,6 +1,8 @@
 const options = { origins: '*:*'}
 const io = require('socket.io')(options);
 
+const port = process.env.PORT || 3000;
+
 io.on('connection', function(socket) {
   socket.on('join', function(roomID){
     socket.join(roomID, () => {
@@ -17,4 +19,4 @@ io.on('connection', function(socket) {
   });
 });
 
-io.listen(3000);
+io.listen(port);

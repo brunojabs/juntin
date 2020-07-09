@@ -2,7 +2,15 @@
   "dependencies": {
     "socket.io": "^2.3.0"
   },
-  "name": "juntin-server",
+	"scripts": {
+		"start": "node index.js",
+		"deploy": "git push heroku `git subtree split --prefix server setup-deploy`:master --force"
+	},
+  "engines": {
+    "node": "12.x",
+		"yarn": "1.x"
+  },
+	"name": "juntin-server",
   "version": "1.0.0",
   "description": "The server for Juntin platform",
   "main": "index.js",
