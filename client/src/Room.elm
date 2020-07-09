@@ -67,10 +67,6 @@ initialRoom =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        _ =
-            Debug.log "room update" ( msg, model )
-    in
     case ( model, msg ) of
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then

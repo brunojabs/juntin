@@ -14,7 +14,8 @@ var app = Elm.Main.init({
 serviceWorker.unregister();
 
 
-var socket = io('localhost:3000');
+console.log('teste', process.env);
+var socket = io(process.env.ELM_APP_SOCKET_ADDRESS);
 
 app.ports.sendData.subscribe(function(message) {
   socket.emit('sendData', message);
