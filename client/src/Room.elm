@@ -39,7 +39,7 @@ type BroadcastMsg
     | SendData Room
     | Play
     | Pause
-    | SetCurrentVideo
+    | SetCurrentVideo String
 
 
 type alias Room =
@@ -71,7 +71,7 @@ update msg model =
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then
                 ( initialModel roomID
-                , sendPlayerMessage (Player.LoadVideo initialRoom.currentVideoID initialRoom.currentTime)
+                , sendPlayerMessage (Player.CueVideo initialRoom.currentVideoID initialRoom.currentTime)
                 )
 
             else
@@ -81,11 +81,16 @@ update msg model =
             case D.decodeValue decoder data of
                 Ok (SendData room) ->
                     let
-                        _ =
-                            Debug.log "room" room
+                        playCommand =
+                            case room.playerState of
+                                Player.Playing ->
+                                    Player.LoadVideo
+
+                                _ ->
+                                    Player.CueVideo
                     in
                     ( updateModelRoom room (initialModel roomID)
-                    , sendPlayerMessage (Player.LoadVideo room.currentVideoID room.currentTime)
+                    , sendPlayerMessage (playCommand room.currentVideoID room.currentTime)
                     )
 
                 Ok _ ->
@@ -105,6 +110,11 @@ update msg model =
                 Ok Pause ->
                     ( updateModelRoom { room | playerState = Paused } model, sendPlayerMessage Player.Pause )
 
+                Ok (SetCurrentVideo videoID) ->
+                    ( updateModelRoom { room | currentVideoID = videoID } model
+                    , sendPlayerMessage (Player.LoadVideo videoID 0)
+                    )
+
                 Ok _ ->
                     ( model, Cmd.none )
 
@@ -114,8 +124,20 @@ update msg model =
         ( Loaded _, TextChanged text ) ->
             ( updateModelInputText text model, Cmd.none )
 
-        ( Loaded { inputText }, SetVideo ) ->
-            ( updateModelInputText "" model, sendPlayerMessage (Player.LoadVideo inputText 0) )
+        ( Loaded { inputText, room, roomID }, SetVideo ) ->
+            let
+                newModel =
+                    model
+                        |> updateModelInputText ""
+                        |> updateModelRoom { room | currentVideoID = inputText }
+
+                cmds =
+                    Cmd.batch
+                        [ sendPlayerMessage (Player.LoadVideo inputText 0)
+                        , sendData (encode roomID (SetCurrentVideo inputText))
+                        ]
+            in
+            ( newModel, cmds )
 
         ( Loaded { room, roomID }, ReceivePlayerMsg playerMsg ) ->
             let
@@ -136,7 +158,7 @@ update msg model =
                         _ ->
                             Cmd.none
             in
-            ( model, cmds )
+            ( newModel, cmds )
 
         ( Loaded { roomID, room }, ReceiveCurrentTimeForSync newCurrentTime ) ->
             let
@@ -229,9 +251,14 @@ encode roomID broadcastMsg =
                 , ( "message", E.string "Pause" )
                 ]
 
-        SetCurrentVideo ->
+        SetCurrentVideo videoID ->
             E.object
-                [ ( "roomID", E.string roomID )
+                [ ( "data"
+                  , E.object
+                        [ ( "videoID", E.string videoID )
+                        ]
+                  )
+                , ( "roomID", E.string roomID )
                 , ( "message", E.string "SetCurrentVideo" )
                 ]
 
@@ -254,7 +281,7 @@ messageDecoder message =
             D.succeed Pause
 
         "SetCurrentVideo" ->
-            D.succeed SetCurrentVideo
+            D.at [ "data", "videoID" ] D.string |> D.map SetCurrentVideo
 
         "SendData" ->
             roomDecoder |> D.map SendData

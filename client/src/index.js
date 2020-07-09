@@ -43,6 +43,7 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
     });
   }
 
+  console.log('emitPlayer', message, data)
   switch(message) {
     case 'play':
         player.playVideo();
@@ -53,7 +54,12 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
 
       break;
     case 'loadVideo':
-      console.log('loadVideo', data);
+      // NOTE: LoadVideo loads the video and play it as soon as it is loaded
+      player.loadVideoById(data.videoID, data.time);
+
+      break;
+    case 'cueVideo':
+      // NOTE: CueVideo loads the video but don't start to play it
       player.cueVideoById(data.videoID, data.time)
 
       break;
