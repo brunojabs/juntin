@@ -126,15 +126,18 @@ update msg model =
 
         ( Loaded { inputText, room, roomID }, SetVideo ) ->
             let
+                videoID =
+                    Player.youtubeIdFromUrl inputText |> Maybe.withDefault ""
+
                 newModel =
                     model
                         |> updateModelInputText ""
-                        |> updateModelRoom { room | currentVideoID = inputText }
+                        |> updateModelRoom { room | currentVideoID = videoID }
 
                 cmds =
                     Cmd.batch
-                        [ sendPlayerMessage (Player.LoadVideo inputText 0)
-                        , sendData (encode roomID (SetCurrentVideo inputText))
+                        [ sendPlayerMessage (Player.LoadVideo videoID 0)
+                        , sendData (encode roomID (SetCurrentVideo videoID))
                         ]
             in
             ( newModel, cmds )
@@ -194,7 +197,7 @@ view model =
                         [ h3 [] [ text room.inputText ]
                         , input
                             [ type_ "text"
-                            , placeholder "Video ID"
+                            , placeholder "Cole aqui o link do vídeo que deseja assistir"
                             , onInput TextChanged
                             , value room.inputText
                             ]

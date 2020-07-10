@@ -2,6 +2,7 @@ module Player exposing (..)
 
 import Json.Decode as D
 import Json.Encode as E
+import Regex
 
 
 type State
@@ -114,3 +115,15 @@ encodePlayerMsg playerMsg =
                 [ ( "message", E.string "cueVideo" )
                 , ( "data", E.object [ ( "videoID", E.string videoID ), ( "time", E.float time ) ] )
                 ]
+
+
+youtubeIdFromUrl : String -> Maybe String
+youtubeIdFromUrl url =
+    List.head (Regex.find youtubeIdRegex url)
+        |> Maybe.andThen (.submatches >> List.filterMap identity >> List.head)
+
+
+youtubeIdRegex : Regex.Regex
+youtubeIdRegex =
+    Maybe.withDefault Regex.never <|
+        Regex.fromString "(?:youtube(?:-nocookie)?\\.com\\/(?:[^\\/\\n\\s]+\\/\\S+\\/|(?:v|e(?:mbed)?)\\/|\\S*?[?&]v=)|youtu\\.be\\/)([a-zA-Z0-9_-]{11})"
