@@ -1,7 +1,7 @@
 port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
-import Html exposing (Html, button, div, h3, img, input, text)
-import Html.Attributes exposing (hidden, id, placeholder, src, type_, value)
+import Html exposing (Html, button, div, h3, img, input, label, text)
+import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
@@ -193,16 +193,24 @@ view model =
                     text ("Aguardando infos da sala: " ++ roomID)
 
                 Loaded room ->
-                    div []
-                        [ h3 [] [ text room.inputText ]
-                        , input
-                            [ type_ "text"
-                            , placeholder "Cole aqui o link do vídeo que deseja assistir"
-                            , onInput TextChanged
-                            , value room.inputText
+                    div
+                        [ class "video-url" ]
+                        [ div [ class "video-url__group" ]
+                            [ input
+                                [ type_ "text"
+                                , placeholder "Cole aqui o link do vídeo"
+                                , onInput TextChanged
+                                , value room.inputText
+                                , class "video-url__input"
+                                , name "video-url-input"
+                                , id "video-url-input"
+                                ]
+                                []
+                            , label
+                                [ class "video-url__label", for "video-url-input" ]
+                                [ text "Cole aqui o link do vídeo" ]
                             ]
-                            []
-                        , button [ onClick SetVideo ] [ text "Set Video ID" ]
+                        , button [ onClick SetVideo, class "video-url__button button" ] [ text "enviar" ]
                         ]
 
         hidePlayer =
@@ -213,7 +221,7 @@ view model =
                 _ ->
                     True
     in
-    div []
+    div [ class "room" ]
         [ img [ src "juntin-logo.png" ] []
         , div [ id "player", hidden hidePlayer ] []
         , content

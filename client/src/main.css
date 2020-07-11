@@ -9,10 +9,12 @@
   height: inherit;
 }
 
-* {
+html * {
 	font-family: 'Playfair Display', serif;
 	font-weight: 400;
+	-webkit-tap-highlight-color: transparent;
 }
+
 
 body {
   margin: 0;
@@ -30,8 +32,39 @@ img {
   max-width: 200px;
 }
 
+
 button {
-	border: 0;
+	border: none;
+	margin: 0;
+	padding: 0;
+	width: auto;
+	overflow: visible;
+
+	background: transparent;
+
+	/* inherit font & color from ancestor */
+	color: inherit;
+	font: inherit;
+
+	/* Normalize `line-height`. Cannot be changed from `normal` in Firefox 4+. */
+	line-height: normal;
+
+	/* Corrects font smoothing for webkit */
+	-webkit-font-smoothing: inherit;
+	-moz-osx-font-smoothing: inherit;
+
+	/* Corrects inability to style clickable `input` types in iOS */
+	-webkit-appearance: none;
+}
+
+/* Remove excess padding and border in Firefox 4+ */
+button::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+}
+
+
+.button {
 	text-decoration: underline;
 	cursor: pointer;
 	font-size: 50px;
@@ -42,4 +75,77 @@ button:hover {
 	text-shadow:  0.05em 0.05em 0 #2cfcfd,
 	-0.05em 0 0 #ff0aff,
 	0.09em 0 0 #ffff0a;
+}
+
+
+.room {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.video-url {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	align-items: center;
+}
+
+.video_url__button {
+	font-size: 30px;
+}
+
+
+.video-url__group {
+  position: relative;
+  padding: 15px 0 0;
+  margin-top: 10px;
+  width: 50%;
+}
+
+.video-url__input {
+  font-family: inherit;
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid #9b9b9b;
+  outline: none;
+  font-size: 1.3rem;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+.video-url__input::placeholder {
+  color: transparent;
+}
+.video-url__input:placeholder-shown ~ .video-url__label {
+  font-size: 1.3rem;
+  cursor: text;
+  top: 20px;
+}
+
+.video-url__label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 1rem;
+}
+
+.video-url__input:focus {
+  padding-bottom: 6px;
+  border-width: 0 0 3px 0;
+  border-image: linear-gradient(90deg, rgba(44,252,253,0.8085609243697479) 17%, rgba(255,10,255,0.7189250700280112) 53%, rgba(255,255,10,0.80015756302521) 82%);
+  border-image-slice: 1;
+}
+.video-url__input:focus ~ .video-url__label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 1rem;
+}
+
+/* reset input */
+.video-url__input:required, .video-url__input:invalid {
+  box-shadow: none;
 }
