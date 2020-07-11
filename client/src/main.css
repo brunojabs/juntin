@@ -24,45 +24,19 @@ body {
 }
 
 h1 {
-  font-size: 30px;
+  font-size: 50px;
+	line-height: 1.5em;
+}
+
+
+h2 {
+  font-size: 40px;
 }
 
 img {
   margin: 20px 0;
   max-width: 200px;
 }
-
-
-button {
-	border: none;
-	margin: 0;
-	padding: 0;
-	width: auto;
-	overflow: visible;
-
-	background: transparent;
-
-	/* inherit font & color from ancestor */
-	color: inherit;
-	font: inherit;
-
-	/* Normalize `line-height`. Cannot be changed from `normal` in Firefox 4+. */
-	line-height: normal;
-
-	/* Corrects font smoothing for webkit */
-	-webkit-font-smoothing: inherit;
-	-moz-osx-font-smoothing: inherit;
-
-	/* Corrects inability to style clickable `input` types in iOS */
-	-webkit-appearance: none;
-}
-
-/* Remove excess padding and border in Firefox 4+ */
-button::-moz-focus-inner {
-    border: 0;
-    padding: 0;
-}
-
 
 .button {
 	text-decoration: underline;
@@ -76,7 +50,6 @@ button:hover {
 	-0.05em 0 0 #ff0aff,
 	0.09em 0 0 #ffff0a;
 }
-
 
 .room {
 	display: flex;

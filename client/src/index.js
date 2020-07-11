@@ -1,3 +1,4 @@
+import './reset.css';
 import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
