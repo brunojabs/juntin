@@ -15,7 +15,6 @@ html * {
 	-webkit-tap-highlight-color: transparent;
 }
 
-
 body {
   margin: 0;
   text-align: center;
@@ -35,7 +34,7 @@ h2 {
 
 img {
   margin: 20px 0;
-  max-width: 200px;
+  max-width: 100px;
 }
 
 .button {
@@ -55,19 +54,67 @@ button:hover {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	width: 100%;
+  height: 100vh;
+}
+
+.content__wrapper {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	padding: 20px;
+}
+
+
+.divider {
+	width: 2px;
+	box-shadow: 0.05em 0.05em 0 #2cfcfd,
+	-0.05em 0 0 #ff0aff,
+	0.09em 0 0 #ffff0a;
+	background: #000;
+	margin: 10px 0;
+}
+
+.playlist {
+	flex-grow: 1;
+	margin: 0 20px;
+  border-width: 0 0 3px 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.playlist__list {
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+
+.playlist__title {
+	text-shadow:  0.05em 0.05em 0 #2cfcfd,
+	-0.05em 0 0 #ff0aff,
+	0.09em 0 0 #ffff0a;
+	font-size: 1.3em;
+	margin-bottom: 10px;
+}
+.playlist__current_item {
+	text-shadow:  0.05em 0.05em 0 #2cfcfd,
+	-0.05em 0 0 #ff0aff,
+	0.09em 0 0 #ffff0a;
+}
+
+.player__wrapper {
+	flex-grow: 2;
 }
 
 .video-url {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	justify-content: center;
 	width: 100%;
-	align-items: center;
 }
-
-.video_url__button {
-	font-size: 30px;
-}
-
 
 .video-url__group {
   position: relative;
