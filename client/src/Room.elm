@@ -1,8 +1,9 @@
 port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
-import Html exposing (Html, button, div, h3, img, input, label, text)
+import Array
+import Html exposing (Html, button, div, form, h3, img, input, label, li, text, ul)
 import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onInput, onSubmit)
 import Json.Decode as D
 import Json.Encode as E
 import Player exposing (..)
@@ -26,7 +27,7 @@ type alias LoadedModel =
 
 
 type Msg
-    = SetVideo
+    = AddVideo
     | TextChanged String
     | JoinedRoom Int
     | ReceiveData E.Value
@@ -39,13 +40,14 @@ type BroadcastMsg
     | SendData Room
     | Play
     | Pause
-    | SetCurrentVideo String
+    | SendPlaylistItem String
 
 
 type alias Room =
-    { currentVideoID : String
-    , currentTime : Float
+    { currentTime : Float
     , playerState : Player.State
+    , playlist : List String
+    , currentVideoIndex : Int
     }
 
 
@@ -59,9 +61,10 @@ initialModel roomID =
 
 
 initialRoom =
-    { currentVideoID = "hBCUuSr-0Nk"
-    , currentTime = 0
+    { currentTime = 0
     , playerState = Player.Unstarted
+    , playlist = []
+    , currentVideoIndex = 0
     }
 
 
@@ -71,7 +74,7 @@ update msg model =
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then
                 ( initialModel roomID
-                , sendPlayerMessage (Player.CueVideo initialRoom.currentVideoID initialRoom.currentTime)
+                , sendPlayerMessage (Player.CueVideo "hBCUuSr-0Nk" 0)
                 )
 
             else
@@ -88,10 +91,18 @@ update msg model =
 
                                 _ ->
                                     Player.CueVideo
+
+                        newModel =
+                            updateModelRoom room (initialModel roomID)
                     in
-                    ( updateModelRoom room (initialModel roomID)
-                    , sendPlayerMessage (playCommand room.currentVideoID room.currentTime)
-                    )
+                    case currentVideoID room of
+                        Just videoID ->
+                            ( newModel
+                            , sendPlayerMessage (playCommand videoID room.currentTime)
+                            )
+
+                        Nothing ->
+                            ( newModel, Cmd.none )
 
                 Ok _ ->
                     ( model, Cmd.none )
@@ -110,9 +121,17 @@ update msg model =
                 Ok Pause ->
                     ( updateModelRoom { room | playerState = Paused } model, sendPlayerMessage Player.Pause )
 
-                Ok (SetCurrentVideo videoID) ->
-                    ( updateModelRoom { room | currentVideoID = videoID } model
-                    , sendPlayerMessage (Player.LoadVideo videoID 0)
+                Ok (SendPlaylistItem videoID) ->
+                    let
+                        cmd =
+                            if List.isEmpty room.playlist then
+                                sendPlayerMessage (Player.LoadVideo videoID 0)
+
+                            else
+                                Cmd.none
+                    in
+                    ( updateModelRoom { room | playlist = videoID :: room.playlist } model
+                    , cmd
                     )
 
                 Ok _ ->
@@ -124,44 +143,64 @@ update msg model =
         ( Loaded _, TextChanged text ) ->
             ( updateModelInputText text model, Cmd.none )
 
-        ( Loaded { inputText, room, roomID }, SetVideo ) ->
-            let
-                videoID =
-                    Player.youtubeIdFromUrl inputText |> Maybe.withDefault ""
+        ( Loaded { inputText, room, roomID }, AddVideo ) ->
+            case Player.youtubeIdFromUrl inputText of
+                Just videoID ->
+                    let
+                        cmds =
+                            if List.isEmpty room.playlist then
+                                Cmd.batch
+                                    [ sendPlayerMessage (Player.LoadVideo videoID 0)
+                                    , sendData (encode roomID (SendPlaylistItem videoID))
+                                    ]
 
-                newModel =
-                    model
+                            else
+                                sendData (encode roomID (SendPlaylistItem videoID))
+                    in
+                    ( model
                         |> updateModelInputText ""
-                        |> updateModelRoom { room | currentVideoID = videoID }
+                        |> updateModelRoom { room | playlist = room.playlist ++ [ videoID ] }
+                    , cmds
+                    )
 
-                cmds =
-                    Cmd.batch
-                        [ sendPlayerMessage (Player.LoadVideo videoID 0)
-                        , sendData (encode roomID (SetCurrentVideo videoID))
-                        ]
-            in
-            ( newModel, cmds )
+                Nothing ->
+                    ( model, Cmd.none )
 
         ( Loaded { room, roomID }, ReceivePlayerMsg playerMsg ) ->
             let
                 newPlayerState =
                     playerStateFromString playerMsg
 
+                newRoom =
+                    { room | playerState = newPlayerState }
+
                 newModel =
-                    updateModelRoom { room | playerState = newPlayerState } model
+                    updateModelRoom newRoom model
 
-                cmds =
-                    case newPlayerState of
-                        Playing ->
-                            sendData (encode roomID Play)
-
-                        Paused ->
-                            sendData (encode roomID Pause)
-
-                        _ ->
-                            Cmd.none
+                nextVideoIndex =
+                    room.currentVideoIndex + 1
             in
-            ( newModel, cmds )
+            case newPlayerState of
+                Playing ->
+                    ( newModel, sendData <| encode roomID Play )
+
+                Paused ->
+                    ( newModel, sendData <| encode roomID Pause )
+
+                Ended ->
+                    case getVideoAt nextVideoIndex room of
+                        Just newVideoID ->
+                            ( updateModelRoom { newRoom | currentVideoIndex = nextVideoIndex } newModel
+                            , sendPlayerMessage <| Player.LoadVideo newVideoID 0
+                            )
+
+                        Nothing ->
+                            ( newModel
+                            , Cmd.none
+                            )
+
+                _ ->
+                    ( newModel, Cmd.none )
 
         ( Loaded { roomID, room }, ReceiveCurrentTimeForSync newCurrentTime ) ->
             let
@@ -192,26 +231,8 @@ view model =
                 WaitingSync roomID ->
                     text ("Aguardando infos da sala: " ++ roomID)
 
-                Loaded room ->
-                    div
-                        [ class "video-url" ]
-                        [ div [ class "video-url__group" ]
-                            [ input
-                                [ type_ "text"
-                                , placeholder "Cole aqui o link do vídeo"
-                                , onInput TextChanged
-                                , value room.inputText
-                                , class "video-url__input"
-                                , name "video-url-input"
-                                , id "video-url-input"
-                                ]
-                                []
-                            , label
-                                [ class "video-url__label", for "video-url-input" ]
-                                [ text "Cole aqui o link do vídeo" ]
-                            ]
-                        , button [ onClick SetVideo, class "video-url__button button" ] [ text "enviar" ]
-                        ]
+                Loaded loadedModel ->
+                    formView loadedModel
 
         hidePlayer =
             case model of
@@ -223,9 +244,69 @@ view model =
     in
     div [ class "room" ]
         [ img [ src "juntin-logo.png" ] []
-        , div [ id "player", hidden hidePlayer ] []
-        , content
+        , div
+            [ class "content__wrapper" ]
+            [ playlistView model
+            , div [ class "divider" ] []
+            , div [ class "player__wrapper" ]
+                [ div [ id "player", hidden hidePlayer ] []
+                , content
+                ]
+            ]
         ]
+
+
+formView : LoadedModel -> Html Msg
+formView loadedModel =
+    form
+        [ onSubmit AddVideo, class "video-url" ]
+        [ div
+            [ class "video-url__group" ]
+            [ input
+                [ type_ "text"
+                , placeholder "Cole o link para adicionar"
+                , onInput TextChanged
+                , value loadedModel.inputText
+                , class "video-url__input"
+                , name "video-url-input"
+                , id "video-url-input"
+                ]
+                []
+            , label
+                [ class "video-url__label", for "video-url-input" ]
+                [ text "Cole o link para adicionar" ]
+            ]
+        , button [ type_ "submit", class "button" ] [ text "+" ]
+        ]
+
+
+playlistView : Model -> Html Msg
+playlistView model =
+    case model of
+        Loaded { room } ->
+            div [ class "playlist" ]
+                [ h3 [ class "playlist__title" ]
+                    [ text "Lista de reprodução" ]
+                , ul
+                    [ class "playlist__list" ]
+                    (List.indexedMap (playlistItemView room.currentVideoIndex) room.playlist)
+                ]
+
+        _ ->
+            div [] []
+
+
+playlistItemView : Int -> Int -> String -> Html Msg
+playlistItemView currentVideoIndex index videoID =
+    let
+        currentClass =
+            if currentVideoIndex == index then
+                "playlist__current_item"
+
+            else
+                ""
+    in
+    li [ class currentClass ] [ text videoID ]
 
 
 encode : RoomID -> BroadcastMsg -> E.Value
@@ -236,8 +317,9 @@ encode roomID broadcastMsg =
                 [ ( "data"
                   , E.object
                         [ ( "playerState", E.string (stringFromPlayerState room.playerState) )
-                        , ( "currentVideoID", E.string room.currentVideoID )
                         , ( "currentTime", E.float room.currentTime )
+                        , ( "playlist", E.list E.string room.playlist )
+                        , ( "currentVideoIndex", E.int room.currentVideoIndex )
                         ]
                   )
                 , ( "roomID", E.string roomID )
@@ -262,7 +344,7 @@ encode roomID broadcastMsg =
                 , ( "message", E.string "Pause" )
                 ]
 
-        SetCurrentVideo videoID ->
+        SendPlaylistItem videoID ->
             E.object
                 [ ( "data"
                   , E.object
@@ -270,7 +352,7 @@ encode roomID broadcastMsg =
                         ]
                   )
                 , ( "roomID", E.string roomID )
-                , ( "message", E.string "SetCurrentVideo" )
+                , ( "message", E.string "SendPlaylistItem" )
                 ]
 
 
@@ -291,8 +373,8 @@ messageDecoder message =
         "Pause" ->
             D.succeed Pause
 
-        "SetCurrentVideo" ->
-            D.at [ "data", "videoID" ] D.string |> D.map SetCurrentVideo
+        "SendPlaylistItem" ->
+            D.at [ "data", "videoID" ] D.string |> D.map SendPlaylistItem
 
         "SendData" ->
             roomDecoder |> D.map SendData
@@ -303,10 +385,11 @@ messageDecoder message =
 
 roomDecoder : D.Decoder Room
 roomDecoder =
-    D.map3 Room
-        (D.at [ "data", "currentVideoID" ] D.string)
+    D.map4 Room
         (D.at [ "data", "currentTime" ] D.float)
         (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
+        (D.at [ "data", "playlist" ] (D.list D.string))
+        (D.at [ "data", "currentVideoIndex" ] D.int)
 
 
 port joinRoom : String -> Cmd msg
@@ -363,3 +446,13 @@ updateModelInputText newInput oldModel =
 
         _ ->
             oldModel
+
+
+getVideoAt : Int -> Room -> Maybe String
+getVideoAt index room =
+    Array.get index (Array.fromList room.playlist)
+
+
+currentVideoID : Room -> Maybe String
+currentVideoID room =
+    Array.get room.currentVideoIndex (Array.fromList room.playlist)
