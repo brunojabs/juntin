@@ -6,6 +6,7 @@ import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src,
 import Html.Events exposing (onInput, onSubmit)
 import Json.Decode as D
 import Json.Encode as E
+import Logo exposing (logo, logoLoading)
 import Player exposing (..)
 
 
@@ -243,7 +244,7 @@ view model =
                     True
     in
     div [ class "room" ]
-        [ img [ src "juntin-logo.png" ] []
+        [ logoView model
         , div
             [ class "content__wrapper" ]
             [ playlistView model
@@ -254,6 +255,19 @@ view model =
                 ]
             ]
         ]
+
+
+logoView : Model -> Html msg
+logoView model =
+    case model of
+        WaitingSync _ ->
+            logoLoading
+
+        Joining _ ->
+            logoLoading
+
+        Loaded _ ->
+            logo
 
 
 formView : LoadedModel -> Html Msg
