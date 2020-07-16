@@ -5,6 +5,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import LinkGenerator
+import Logo exposing (logo)
 
 
 type Msg
@@ -23,8 +24,8 @@ init key =
 
 view : Html Msg
 view =
-    div []
-        [ img [ src "juntin-logo.png" ] []
+    div [ class "home" ]
+        [ logo
         , h1 [] [ text "Bem-vindo ao Juntin" ]
         , h2 [] [ text "Assista junto" ]
         , button [ onClick GenerateLink, class "button" ] [ text "Crie uma sala" ]
