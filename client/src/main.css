@@ -105,6 +105,11 @@ button:hover {
   0.09em 0 0 #ffff0a;
 }
 
+.playlist__remove-button {
+  font-size: inherit;
+  margin: 0 10px;
+}
+
 .player__wrapper {
   flex-grow: 2;
 	display: flex;

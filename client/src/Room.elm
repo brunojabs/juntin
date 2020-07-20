@@ -37,6 +37,7 @@ type Msg
     | ReceiveCurrentTimeForSync Float
     | PlayVideo
     | PauseVideo
+    | RemoveVideo Int
 
 
 type BroadcastMsg
@@ -223,6 +224,11 @@ update msg model =
                 ]
             )
 
+        ( Loaded { room }, RemoveVideo videoIndex ) ->
+            ( updateModelRoom { room | playlist = removeVideoAt videoIndex room.playlist } model
+            , Cmd.none
+            )
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
@@ -343,14 +349,24 @@ playlistView model =
 playlistItemView : Int -> Int -> String -> Html Msg
 playlistItemView currentVideoIndex index videoID =
     let
-        currentClass =
+        ( currentClass, removeButton ) =
             if currentVideoIndex == index then
-                "playlist__current_item"
+                ( "playlist__current_item", [] )
 
             else
-                ""
+                ( ""
+                , [ playlistRemoveView index ]
+                )
     in
-    li [ class currentClass ] [ text videoID ]
+    li [ class currentClass ] ([ text videoID ] ++ removeButton)
+
+
+playlistRemoveView index =
+    button
+        [ onClick (RemoveVideo index)
+        , class "button playlist__remove-button"
+        ]
+        [ text "[x]" ]
 
 
 encode : RoomID -> BroadcastMsg -> E.Value
@@ -500,3 +516,13 @@ getVideoAt index room =
 currentVideoID : Room -> Maybe String
 currentVideoID room =
     Array.get room.currentVideoIndex (Array.fromList room.playlist)
+
+
+removeVideoAt : Int -> List String -> List String
+removeVideoAt index playlist =
+    case List.drop index playlist of
+        [] ->
+            playlist
+
+        _ :: rest ->
+            List.take index playlist ++ rest
