@@ -15,7 +15,6 @@ var app = Elm.Main.init({
 serviceWorker.unregister();
 
 
-console.log('teste', process.env);
 var socket = io(process.env.ELM_APP_SOCKET_ADDRESS);
 
 app.ports.sendData.subscribe(function(message) {
@@ -39,13 +38,12 @@ let player = null;
 
 app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
   if(!player) {
-    player = YouTubePlayer('player', { playerVars: { 'autoplay': 0 }});
+    player = YouTubePlayer('player', { playerVars: { 'autoplay': 0, 'controls': 0 }});
     player.on('stateChange', ({ data }) => {
       app.ports.playerMsgReceiver.send(stateNames[data] || "");
     });
   }
 
-  console.log('emitPlayer', message, data)
   switch(message) {
     case 'play':
         player.playVideo();

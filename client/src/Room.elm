@@ -1,9 +1,10 @@
 port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view)
 
 import Array
+import ControlButton exposing (pauseButtonView, playButtonView)
 import Html exposing (Html, button, div, form, h3, img, input, label, li, text, ul)
 import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
-import Html.Events exposing (onInput, onSubmit)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Json.Decode as D
 import Json.Encode as E
 import Logo exposing (logo, logoLoading)
@@ -34,6 +35,8 @@ type Msg
     | ReceiveData E.Value
     | ReceivePlayerMsg String
     | ReceiveCurrentTimeForSync Float
+    | PlayVideo
+    | PauseVideo
 
 
 type BroadcastMsg
@@ -182,12 +185,6 @@ update msg model =
                     room.currentVideoIndex + 1
             in
             case newPlayerState of
-                Playing ->
-                    ( newModel, sendData <| encode roomID Play )
-
-                Paused ->
-                    ( newModel, sendData <| encode roomID Pause )
-
                 Ended ->
                     case getVideoAt nextVideoIndex room of
                         Just newVideoID ->
@@ -209,6 +206,22 @@ update msg model =
                     { room | currentTime = newCurrentTime }
             in
             ( updateModelRoom newRoom model, sendData (encode roomID (SendData newRoom)) )
+
+        ( Loaded { room, roomID }, PlayVideo ) ->
+            ( model
+            , Cmd.batch
+                [ sendPlayerMessage Player.Play
+                , sendData <| encode roomID Play
+                ]
+            )
+
+        ( Loaded { room, roomID }, PauseVideo ) ->
+            ( model
+            , Cmd.batch
+                [ sendPlayerMessage Player.Pause
+                , sendData <| encode roomID Pause
+                ]
+            )
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -250,11 +263,28 @@ view model =
             [ playlistView model
             , div [ class "divider" ] []
             , div [ class "player__wrapper" ]
-                [ div [ id "player", hidden hidePlayer ] []
+                [ div [ id "player", hidden hidePlayer ]
+                    []
+                , controlButtonView model
                 , content
                 ]
             ]
         ]
+
+
+controlButtonView : Model -> Html Msg
+controlButtonView model =
+    case model of
+        Loaded { room } ->
+            case room.playerState of
+                Player.Playing ->
+                    button [ onClick PauseVideo ] [ pauseButtonView ]
+
+                _ ->
+                    button [ onClick PlayVideo ] [ playButtonView ]
+
+        _ ->
+            div [] []
 
 
 logoView : Model -> Html msg
