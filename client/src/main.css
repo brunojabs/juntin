@@ -107,8 +107,21 @@ button:hover {
 
 .player__wrapper {
   flex-grow: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
+.control-button__wrapper {
+	width: 20px;
+	margin: 5px;
+}
+
+.control-button__wrapper:hover svg {
+  filter:  drop-shadow(0.15em 0.15em 0 #2cfcfd)
+	drop-shadow(-0.15em 0 0 #ff0aff)
+	drop-shadow(0.19em 0 0 #ffff0a);
+}
 .video-url {
   display: flex;
   flex-direction: row;
