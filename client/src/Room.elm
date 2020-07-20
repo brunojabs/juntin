@@ -240,10 +240,10 @@ view model =
         content =
             case model of
                 Joining roomID ->
-                    text ("Entrando na sala: " ++ roomID)
+                    div [] [ text ("Entrando na sala: " ++ roomID) ]
 
                 WaitingSync roomID ->
-                    text ("Aguardando infos da sala: " ++ roomID)
+                    div [] [ text ("Aguardando infos da sala: " ++ roomID) ]
 
                 Loaded loadedModel ->
                     formView loadedModel
