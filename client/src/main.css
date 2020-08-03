@@ -110,11 +110,20 @@ button:hover {
   margin: 0 10px;
 }
 
+.plyr-container {
+  width: 100%;
+}
+
+.plyr--video {
+  height: 90%;
+}
+
 .player__wrapper {
   flex-grow: 2;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+  padding: 20px;
 }
 
 .control-button__wrapper {

@@ -4,6 +4,7 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import io from 'socket.io-client';
 import YouTubePlayer from 'youtube-player';
+import Plyr from 'plyr';
 
 var app = Elm.Main.init({
   node: document.getElementById('root')
@@ -34,15 +35,33 @@ socket.on('joinedRoom', function(data) {
 });
 
 let player = null;
+let plyr = null;
 
+
+const observer = new MutationObserver((mutationList, observer) => {
+  if( anyPlayer(mutationList) ) {
+      //player = YouTubePlayer('yt-player');
+      //player.loadVideoById('M7lc1UVf-VE').then( () => {
+      //});
+
+        window.plyr = new Plyr('#player', { 'youtube': { 'modestbranding': 1, 'rel': 1, 'controls': 0 }} );
+      //player.on('stateChange', ({ data }) => {
+        //app.ports.playerMsgReceiver.send(stateNames[data] || "");
+      //});
+  }
+});
+
+const anyPlayer = (mutationList) => {
+  return mutationList.some(mutation => {
+    return Array.from(mutation.addedNodes).some(node => {
+      return node.className === "player__wrapper";
+    })
+  })
+}
+const targetNode = document.querySelector('.content__wrapper');
+observer.observe(targetNode, {subtree: true , childList: true });
 
 app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
-  if(!player) {
-    player = YouTubePlayer('player', { playerVars: { 'autoplay': 0, 'controls': 0 }});
-    player.on('stateChange', ({ data }) => {
-      app.ports.playerMsgReceiver.send(stateNames[data] || "");
-    });
-  }
 
   switch(message) {
     case 'play':
@@ -67,6 +86,26 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
       player.getCurrentTime().then(function(time) {
         app.ports.playerCurrentTimeReceiver.send(time || 0.0);
       });
+
+      break;
+    case 'loadPlayer':
+      //player = YouTubePlayer('yt-player', { playerVars: { 'autoplay': 0, 'controls': 0 }}).then(() => { ;
+      //plyr = new Plyr('#player') })
+      //player.on('stateChange', ({ data }) => {
+        //app.ports.playerMsgReceiver.send(stateNames[data] || "");
+      //});
+
+    //window.plyr = plyr;
+
+    //plyr.source = {
+      //type: 'video',
+      //sources: [
+        //{
+          //src: 'bTqVqk7FSmY',
+          //provider: 'youtube',
+        //},
+      //],
+    //}
 
       break;
     default:

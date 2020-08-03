@@ -3,7 +3,7 @@ port module Room exposing (Model, Msg, RoomID, init, subscriptions, update, view
 import Array
 import ControlButton exposing (pauseButtonView, playButtonView)
 import Html exposing (Html, button, div, form, h3, img, input, label, li, text, ul)
-import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
+import Html.Attributes exposing (attribute, class, for, hidden, id, name, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Json.Decode as D
 import Json.Encode as E
@@ -79,7 +79,7 @@ update msg model =
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then
                 ( initialModel roomID
-                , sendPlayerMessage (Player.CueVideo "hBCUuSr-0Nk" 0)
+                , sendPlayerMessage Player.Load
                 )
 
             else
@@ -246,13 +246,13 @@ view model =
         content =
             case model of
                 Joining roomID ->
-                    div [] [ text ("Entrando na sala: " ++ roomID) ]
+                    [ div [] [ text ("Entrando na sala: " ++ roomID) ] ]
 
                 WaitingSync roomID ->
-                    div [] [ text ("Aguardando infos da sala: " ++ roomID) ]
+                    [ div [] [ text ("Aguardando infos da sala: " ++ roomID) ] ]
 
                 Loaded loadedModel ->
-                    formView loadedModel
+                    playerView loadedModel
 
         hidePlayer =
             case model of
@@ -262,19 +262,11 @@ view model =
                 _ ->
                     True
     in
-    div [ class "room" ]
+    div [ id "room", class "room" ]
         [ logoView model
         , div
             [ class "content__wrapper" ]
-            [ playlistView model
-            , div [ class "divider" ] []
-            , div [ class "player__wrapper" ]
-                [ div [ id "player", hidden hidePlayer ]
-                    []
-                , controlButtonView model
-                , content
-                ]
-            ]
+            content
         ]
 
 
@@ -306,6 +298,20 @@ logoView model =
             logo
 
 
+playerView : LoadedModel -> List (Html Msg)
+playerView loadedModel =
+    [ playlistView loadedModel.room
+    , div [ class "divider" ] []
+    , div [ class "player__wrapper" ]
+        [ div [ class "plyr-container" ]
+            [ div [ id "player", attribute "data-plyr-provider" "youtube", attribute "data-plyr-embed-id" "hBCUuSr-0Nk" ]
+                []
+            ]
+        , formView loadedModel
+        ]
+    ]
+
+
 formView : LoadedModel -> Html Msg
 formView loadedModel =
     form
@@ -330,20 +336,15 @@ formView loadedModel =
         ]
 
 
-playlistView : Model -> Html Msg
-playlistView model =
-    case model of
-        Loaded { room } ->
-            div [ class "playlist" ]
-                [ h3 [ class "playlist__title" ]
-                    [ text "Lista de reprodução" ]
-                , ul
-                    [ class "playlist__list" ]
-                    (List.indexedMap (playlistItemView room.currentVideoIndex) room.playlist)
-                ]
-
-        _ ->
-            div [] []
+playlistView : Room -> Html Msg
+playlistView room =
+    div [ class "playlist" ]
+        [ h3 [ class "playlist__title" ]
+            [ text "Lista de reprodução" ]
+        , ul
+            [ class "playlist__list" ]
+            (List.indexedMap (playlistItemView room.currentVideoIndex) room.playlist)
+        ]
 
 
 playlistItemView : Int -> Int -> String -> Html Msg

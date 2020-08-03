@@ -1,10 +1,12 @@
 {
   "dependencies": {
     "create-elm-app": "^4.2.26",
+    "plyr": "^3.6.2",
     "socket.io": "^2.3.0",
     "youtube-player": "^5.5.2"
   },
   "scripts": {
-    "build": "elm-app build"
+    "build": "elm-app build",
+		"start": "elm-app start"
   }
 }

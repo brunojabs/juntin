@@ -29,6 +29,7 @@ view =
         , h1 [] [ text "Bem-vindo ao Juntin" ]
         , h2 [] [ text "Assista junto" ]
         , button [ onClick GenerateLink, class "button" ] [ text "Crie uma sala" ]
+        , div [ id "player" ] []
         ]
 
 
