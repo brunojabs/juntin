@@ -79,7 +79,7 @@ update msg model =
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then
                 ( initialModel roomID
-                , sendPlayerMessage Player.Load
+                , initPlayer ()
                 )
 
             else
@@ -303,9 +303,9 @@ playerView loadedModel =
     [ playlistView loadedModel.room
     , div [ class "divider" ] []
     , div [ class "player__wrapper" ]
-        [ div [ class "plyr-container" ]
+        [ div [ class "player-container" ]
             [ div [ id "player", attribute "data-plyr-provider" "youtube", attribute "data-plyr-embed-id" "hBCUuSr-0Nk" ]
-                []
+                [ div [ class "remove" ] [], div [ class "remove" ] [], button [ class "remove" ] [] ]
             ]
         , formView loadedModel
         ]
@@ -469,6 +469,9 @@ port joinedRoom : (Int -> msg) -> Sub msg
 
 
 port emitPlayerMsg : E.Value -> Cmd msg
+
+
+port initPlayer : () -> Cmd msg
 
 
 sendPlayerMessage : Player.Msg -> Cmd msg

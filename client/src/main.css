@@ -110,12 +110,8 @@ button:hover {
   margin: 0 10px;
 }
 
-.plyr-container {
+.player-container {
   width: 100%;
-}
-
-.plyr--video {
-  height: 90%;
 }
 
 .player__wrapper {

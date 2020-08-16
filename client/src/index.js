@@ -34,91 +34,57 @@ socket.on('joinedRoom', function(data) {
   app.ports.joinedRoom.send(data);
 });
 
-let player = null;
-let plyr = null;
+app.ports.initPlayer.subscribe(() => initObserver());
 
-
-const observer = new MutationObserver((mutationList, observer) => {
-  if( anyPlayer(mutationList) ) {
-      //player = YouTubePlayer('yt-player');
-      //player.loadVideoById('M7lc1UVf-VE').then( () => {
-      //});
-
-        window.plyr = new Plyr('#player', { 'youtube': { 'modestbranding': 1, 'rel': 1, 'controls': 0 }} );
-      //player.on('stateChange', ({ data }) => {
-        //app.ports.playerMsgReceiver.send(stateNames[data] || "");
-      //});
-  }
-});
-
-const anyPlayer = (mutationList) => {
-  return mutationList.some(mutation => {
-    return Array.from(mutation.addedNodes).some(node => {
-      return node.className === "player__wrapper";
-    })
-  })
-}
-const targetNode = document.querySelector('.content__wrapper');
-observer.observe(targetNode, {subtree: true , childList: true });
-
-app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
-
-  switch(message) {
-    case 'play':
+const subscribeToMsgs = (player) => {
+  app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
+    switch(message) {
+      case 'play':
         player.playVideo();
 
       break;
-    case 'pause':
+      case 'pause':
         player.pauseVideo()
 
       break;
-    case 'loadVideo':
-      // NOTE: LoadVideo loads the video and play it as soon as it is loaded
-      player.loadVideoById(data.videoID, data.time);
+      case 'loadVideo':
+        // NOTE: LoadVideo loads the video and play it as soon as it is loaded
+        player.loadVideoById(data.videoID, data.time);
 
       break;
-    case 'cueVideo':
-      // NOTE: CueVideo loads the video but don't start to play it
-      player.cueVideoById(data.videoID, data.time)
+      case 'cueVideo':
+        // NOTE: CueVideo loads the video but don't start to play it
+        player.cueVideoById(data.videoID, data.time)
 
       break;
-    case 'getCurrentTime':
-      player.getCurrentTime().then(function(time) {
+      case 'getCurrentTime':
+        player.getCurrentTime().then(function(time) {
         app.ports.playerCurrentTimeReceiver.send(time || 0.0);
       });
 
       break;
-    case 'loadPlayer':
-      //player = YouTubePlayer('yt-player', { playerVars: { 'autoplay': 0, 'controls': 0 }}).then(() => { ;
-      //plyr = new Plyr('#player') })
-      //player.on('stateChange', ({ data }) => {
-        //app.ports.playerMsgReceiver.send(stateNames[data] || "");
-      //});
+      default:
+        break;
+    }
+  })
+}
 
-    //window.plyr = plyr;
+const initObserver = () => {
+    const observer = new MutationObserver((mutationList, observer) => {
+      if( anyPlayer(mutationList) ) {
+        observer.disconnect();
+        subscribeToMsgs(new Plyr('#player'));
+      }
+    });
 
-    //plyr.source = {
-      //type: 'video',
-      //sources: [
-        //{
-          //src: 'bTqVqk7FSmY',
-          //provider: 'youtube',
-        //},
-      //],
-    //}
-
-      break;
-    default:
-      break;
-  }
-});
-
-const stateNames = {
-  '-1': 'Unstarted',
-  0: 'Ended',
-  1: 'Playing',
-  2: 'Paused',
-  3: 'Buffering',
-  5: 'VideoCued'
-};
+    const anyPlayer = (mutationList) => {
+      return mutationList.some(mutation => {
+        return Array.from(mutation.addedNodes).some(node => {
+          return node.className === "player__wrapper";
+        })
+      })
+    }
+    const targetNode = document.querySelector('.content__wrapper');
+    observer.observe(targetNode, {subtree: true , childList: true });
+}
 
