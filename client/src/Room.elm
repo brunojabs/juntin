@@ -46,6 +46,7 @@ type BroadcastMsg
     | Play
     | Pause
     | SendPlaylistItem String
+    | RemovePlaylistItem Int
 
 
 type alias Room =
@@ -139,6 +140,11 @@ update msg model =
                     , cmd
                     )
 
+                Ok (RemovePlaylistItem videoIndex) ->
+                    ( updateModelRoom { room | playlist = removeVideoAt videoIndex room.playlist } model
+                    , Cmd.none
+                    )
+
                 Ok _ ->
                     ( model, Cmd.none )
 
@@ -224,9 +230,9 @@ update msg model =
                 ]
             )
 
-        ( Loaded { room }, RemoveVideo videoIndex ) ->
+        ( Loaded { room, roomID }, RemoveVideo videoIndex ) ->
             ( updateModelRoom { room | playlist = removeVideoAt videoIndex room.playlist } model
-            , Cmd.none
+            , sendData (encode roomID (RemovePlaylistItem videoIndex))
             )
 
         ( _, _ ) ->
@@ -415,6 +421,17 @@ encode roomID broadcastMsg =
                 , ( "message", E.string "SendPlaylistItem" )
                 ]
 
+        RemovePlaylistItem itemIndex ->
+            E.object
+                [ ( "data"
+                  , E.object
+                        [ ( "itemIndex", E.int itemIndex )
+                        ]
+                  )
+                , ( "roomID", E.string roomID )
+                , ( "message", E.string "RemovePlaylistItem" )
+                ]
+
 
 decoder : D.Decoder BroadcastMsg
 decoder =
@@ -435,6 +452,9 @@ messageDecoder message =
 
         "SendPlaylistItem" ->
             D.at [ "data", "videoID" ] D.string |> D.map SendPlaylistItem
+
+        "RemovePlaylistItem" ->
+            D.at [ "data", "itemIndex" ] D.int |> D.map RemovePlaylistItem
 
         "SendData" ->
             roomDecoder |> D.map SendData
