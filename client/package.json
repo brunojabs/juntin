@@ -5,6 +5,7 @@
     "youtube-player": "^5.5.2"
   },
   "scripts": {
-    "build": "elm-app build"
+    "build": "elm-app build",
+    "start": "elm-app start"
   }
 }
