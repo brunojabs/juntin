@@ -38,6 +38,7 @@ type Msg
     | PlayVideo
     | PauseVideo
     | RemoveVideo Int
+    | ChangeVolume String
 
 
 type BroadcastMsg
@@ -54,6 +55,7 @@ type alias Room =
     , playerState : Player.State
     , playlist : List String
     , currentVideoIndex : Int
+    , volume : String
     }
 
 
@@ -71,6 +73,7 @@ initialRoom =
     , playerState = Player.Unstarted
     , playlist = []
     , currentVideoIndex = 0
+    , volume = "100"
     }
 
 
@@ -235,6 +238,11 @@ update msg model =
             , sendData (encode roomID (RemovePlaylistItem videoIndex))
             )
 
+        ( Loaded { room }, ChangeVolume newVolume ) ->
+            ( updateModelRoom { room | volume = newVolume } model
+            , sendPlayerMessage (Player.SetVolume newVolume)
+            )
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
@@ -278,6 +286,7 @@ view model =
                 [ div [ id "player", hidden hidePlayer ]
                     []
                 , controlButtonView model
+                , volumeView model
                 , content
                 ]
             ]
@@ -375,6 +384,25 @@ playlistRemoveView index =
         [ text "[x]" ]
 
 
+volumeView : Model -> Html Msg
+volumeView model =
+    case model of
+        Loaded { room } ->
+            div []
+                [ input
+                    [ type_ "range"
+                    , Html.Attributes.min "0"
+                    , Html.Attributes.max "100"
+                    , value <| room.volume
+                    , onInput ChangeVolume
+                    ]
+                    []
+                ]
+
+        _ ->
+            div [] []
+
+
 encode : RoomID -> BroadcastMsg -> E.Value
 encode roomID broadcastMsg =
     case broadcastMsg of
@@ -465,11 +493,12 @@ messageDecoder message =
 
 roomDecoder : D.Decoder Room
 roomDecoder =
-    D.map4 Room
+    D.map5 Room
         (D.at [ "data", "currentTime" ] D.float)
         (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
         (D.at [ "data", "playlist" ] (D.list D.string))
         (D.at [ "data", "currentVideoIndex" ] D.int)
+        (D.at [ "data", "volume" ] D.string)
 
 
 port joinRoom : String -> Cmd msg

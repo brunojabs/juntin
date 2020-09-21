@@ -9,6 +9,14 @@
   height: inherit;
 }
 
+
+:root {
+	--gradient: linear-gradient(90deg, rgba(44,252,253,0.8085609243697479) 17%, rgba(255,10,255,0.7189250700280112) 53%, rgba(255,255,10,0.80015756302521) 82%);
+	--magenta: #ff0aff;
+	--cyan: #2cfcfd;
+	--yellow: #ffff0a;
+}
+
 html * {
   font-family: 'Playfair Display', serif;
   font-weight: 400;
@@ -172,7 +180,7 @@ button:hover {
 .video-url__input:focus {
   padding-bottom: 6px;
   border-width: 0 0 3px 0;
-  border-image: linear-gradient(90deg, rgba(44,252,253,0.8085609243697479) 17%, rgba(255,10,255,0.7189250700280112) 53%, rgba(255,255,10,0.80015756302521) 82%);
+  border-image: var(--gradient);
   border-image-slice: 1;
 }
 .video-url__input:focus ~ .video-url__label {
@@ -236,3 +244,120 @@ button:hover {
   to   {  transform: rotate(360deg) translateX(-4%) rotate(-360deg); }
 }
 
+input[type=range]::-ms-track {
+    width: 300px;
+    height: 5px;
+
+    /*remove bg colour from the track, we'll use ms-fill-lower and ms-fill-upper instead */
+    background: transparent;
+
+    /*leave room for the larger thumb to overflow with a transparent border */
+    border-color: transparent;
+    border-width: 6px 0;
+
+    /*remove default tick marks*/
+    color: transparent;
+}
+input[type=range]::-ms-fill-lower {
+    width: 300px;
+    height: 5px;
+    background: gray;
+    border: none;
+    border-radius: 3px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		cursor: pointer;
+}
+input[type=range]::-ms-fill-upper {
+    width: 300px;
+    height: 5px;
+    background: gray;
+    border: none;
+    border-radius: 3px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		cursor: pointer;
+}
+
+input[type=range]::-ms-thumb {
+    -webkit-appearance: none;
+    border: none;
+    height: 20px;
+    width: 10px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		background: black;
+    margin-top: -7px;
+}
+
+input[type=range]{
+    /* fix for FF unable to apply focus style bug  */
+
+		background-color: #efefef;
+    /*required for proper track sizing in FF*/
+    width: 300px;
+}
+
+input[type=range]::-moz-range-track {
+    width: 300px;
+    height: 5px;
+    background: gray;
+    border: none;
+    border-radius: 3px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		cursor: pointer;
+}
+
+input[type=range]::-moz-range-thumb {
+    border: none;
+		border-radius: 0;
+    height: 20px;
+    width: 10px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		background: black;
+    margin-top: -7px;
+}
+
+/*hide the outline behind the border*/
+input[type=range]:-moz-focusring{
+    outline: 1px solid white;
+    outline-offset: -1px;
+}
+
+input[type=range]:focus::-moz-range-track {
+}
+
+input[type=range]{
+    -webkit-appearance: none;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 300px;
+    height: 5px;
+    background: gray;
+    border: none;
+    border-radius: 3px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    border: none;
+    height: 20px;
+    width: 10px;
+		box-shadow: 0.05em 0.05em 0 #2cfcfd, -0.05em 0 0 #ff0aff, 0.09em 0 0 #ffff0a;
+		background: black;
+    margin-top: -7px;
+}
+
+
+input[type=range]:hover::-webkit-slider-thumb {
+		box-shadow: 0.15em 0.15em 0 #2cfcfd, -0.15em 0 0 #ff0aff, 0.19em 0 0 #ffff0a;
+		cursor: pointer;
+}
+
+input[type=range]:focus {
+    outline: none;
+}
+
+input[type=range]:focus::-webkit-slider-runnable-track {
+    background: gray;
+}

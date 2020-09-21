@@ -69,6 +69,10 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
       });
 
       break;
+    case 'setVolume':
+      player.setVolume(data.value);
+
+      break;
     default:
       break;
   }

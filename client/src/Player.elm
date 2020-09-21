@@ -21,6 +21,7 @@ type Msg
     | LoadVideo String Float
     | CueVideo String Float
     | GetCurrentTime
+    | SetVolume String
 
 
 playerStateFromString : String -> State
@@ -91,6 +92,9 @@ playMsgToString msg =
         GetCurrentTime ->
             "getCurrentTime"
 
+        SetVolume _ ->
+            "setVolume"
+
 
 encodePlayerMsg : Msg -> E.Value
 encodePlayerMsg playerMsg =
@@ -114,6 +118,12 @@ encodePlayerMsg playerMsg =
             E.object
                 [ ( "message", E.string "cueVideo" )
                 , ( "data", E.object [ ( "videoID", E.string videoID ), ( "time", E.float time ) ] )
+                ]
+
+        SetVolume value ->
+            E.object
+                [ ( "message", E.string "setVolume" )
+                , ( "data", E.object [ ( "value", E.string value ) ] )
                 ]
 
 
