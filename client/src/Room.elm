@@ -414,6 +414,7 @@ encode roomID broadcastMsg =
                         , ( "currentTime", E.float room.currentTime )
                         , ( "playlist", E.list E.string room.playlist )
                         , ( "currentVideoIndex", E.int room.currentVideoIndex )
+                        , ( "volume", E.string "100" )
                         ]
                   )
                 , ( "roomID", E.string roomID )
