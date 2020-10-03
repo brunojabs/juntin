@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "create-elm-app": "^4.2.26",
+    "eslint-config-standard": "^14.1.1",
     "socket.io": "^2.3.0",
     "youtube-player": "^5.5.2"
   },
