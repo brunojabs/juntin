@@ -53,10 +53,36 @@ type BroadcastMsg
 type alias Room =
     { currentTime : Float
     , playerState : Player.State
-    , playlist : List String
+    , playlist : List Video
     , currentVideoIndex : Int
     , volume : String
     }
+
+
+type alias Video =
+    { id : String
+    , loaded : Bool
+    , title : Maybe String
+    , thumbnail : Maybe String
+    }
+
+
+initVideo : String -> Video
+initVideo videoID =
+    { id = videoID
+    , loaded = False
+    , title = Nothing
+    , thumbnail = Nothing
+    }
+
+
+videoDecoder : D.Decoder Video
+videoDecoder =
+    D.map4 Video
+        (D.field "id" D.string)
+        (D.field "loaded" D.bool)
+        (D.field "title" (D.maybe D.string))
+        (D.field "thumbnail" (D.maybe D.string))
 
 
 initialModel : RoomID -> Model
@@ -105,9 +131,9 @@ update msg model =
                             updateModelRoom room (initialModel roomID)
                     in
                     case currentVideoID room of
-                        Just videoID ->
+                        Just video ->
                             ( newModel
-                            , sendPlayerMessage (playCommand videoID room.currentTime)
+                            , sendPlayerMessage (playCommand video.id room.currentTime)
                             )
 
                         Nothing ->
@@ -139,7 +165,7 @@ update msg model =
                             else
                                 Cmd.none
                     in
-                    ( updateModelRoom { room | playlist = videoID :: room.playlist } model
+                    ( updateModelRoom { room | playlist = initVideo videoID :: room.playlist } model
                     , cmd
                     )
 
@@ -173,7 +199,7 @@ update msg model =
                     in
                     ( model
                         |> updateModelInputText ""
-                        |> updateModelRoom { room | playlist = room.playlist ++ [ videoID ] }
+                        |> updateModelRoom { room | playlist = room.playlist ++ [ initVideo videoID ] }
                     , cmds
                     )
 
@@ -197,9 +223,9 @@ update msg model =
             case newPlayerState of
                 Ended ->
                     case getVideoAt nextVideoIndex room of
-                        Just newVideoID ->
+                        Just newVideo ->
                             ( updateModelRoom { newRoom | currentVideoIndex = nextVideoIndex } newModel
-                            , sendPlayerMessage <| Player.LoadVideo newVideoID 0
+                            , sendPlayerMessage <| Player.LoadVideo newVideo.id 0
                             )
 
                         Nothing ->
@@ -361,8 +387,8 @@ playlistView model =
             div [] []
 
 
-playlistItemView : Int -> Int -> String -> Html Msg
-playlistItemView currentVideoIndex index videoID =
+playlistItemView : Int -> Int -> Video -> Html Msg
+playlistItemView currentVideoIndex index video =
     let
         ( currentClass, removeButton ) =
             if currentVideoIndex == index then
@@ -373,7 +399,7 @@ playlistItemView currentVideoIndex index videoID =
                 , [ playlistRemoveView index ]
                 )
     in
-    li [ class currentClass ] ([ text videoID ] ++ removeButton)
+    li [ class currentClass ] ([ text video.id ] ++ removeButton)
 
 
 playlistRemoveView index =
@@ -403,6 +429,16 @@ volumeView model =
             div [] []
 
 
+videoEnconder : Video -> E.Value
+videoEnconder video =
+    E.object
+        [ ( "id", E.string video.id )
+        , ( "loaded", E.bool video.loaded )
+        , ( "title", E.string (Maybe.withDefault "" video.title) )
+        , ( "thumbnail", E.string (Maybe.withDefault "" video.thumbnail) )
+        ]
+
+
 encode : RoomID -> BroadcastMsg -> E.Value
 encode roomID broadcastMsg =
     case broadcastMsg of
@@ -412,7 +448,7 @@ encode roomID broadcastMsg =
                   , E.object
                         [ ( "playerState", E.string (stringFromPlayerState room.playerState) )
                         , ( "currentTime", E.float room.currentTime )
-                        , ( "playlist", E.list E.string room.playlist )
+                        , ( "playlist", E.list videoEnconder room.playlist )
                         , ( "currentVideoIndex", E.int room.currentVideoIndex )
                         , ( "volume", E.string "100" )
                         ]
@@ -497,7 +533,7 @@ roomDecoder =
     D.map5 Room
         (D.at [ "data", "currentTime" ] D.float)
         (D.at [ "data", "playerState" ] (D.map playerStateFromString D.string))
-        (D.at [ "data", "playlist" ] (D.list D.string))
+        (D.at [ "data", "playlist" ] (D.list videoDecoder))
         (D.at [ "data", "currentVideoIndex" ] D.int)
         (D.at [ "data", "volume" ] D.string)
 
@@ -558,17 +594,17 @@ updateModelInputText newInput oldModel =
             oldModel
 
 
-getVideoAt : Int -> Room -> Maybe String
+getVideoAt : Int -> Room -> Maybe Video
 getVideoAt index room =
     Array.get index (Array.fromList room.playlist)
 
 
-currentVideoID : Room -> Maybe String
+currentVideoID : Room -> Maybe Video
 currentVideoID room =
     Array.get room.currentVideoIndex (Array.fromList room.playlist)
 
 
-removeVideoAt : Int -> List String -> List String
+removeVideoAt : Int -> List Video -> List Video
 removeVideoAt index playlist =
     case List.drop index playlist of
         [] ->
