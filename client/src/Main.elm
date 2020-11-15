@@ -25,15 +25,20 @@ type Page
     | NotFound
 
 
+type alias Config =
+    { youtubeAPIKey : String }
+
+
 type alias Model =
     { page : Page
     , key : Key
+    , config : Config
     }
 
 
-init : flags -> Url -> Key -> ( Model, Cmd Msg )
-init _ url key =
-    changeToRoute url key
+init : Config -> Url -> Key -> ( Model, Cmd Msg )
+init config url key =
+    changeToRoute config url key
 
 
 
@@ -49,15 +54,19 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        roomUpdate =
+            Room.update model.config.youtubeAPIKey
+    in
     case ( msg, model.page ) of
         ( GotRoomMsg roomMsg, Room room ) ->
-            Room.update roomMsg room |> updateWith Room GotRoomMsg model
+            roomUpdate roomMsg room |> updateWith Room GotRoomMsg model
 
         ( GotHomeMsg homeMsg, Home home ) ->
             Home.update homeMsg home |> updateWith Home GotHomeMsg model
 
         ( UrlChanged url, _ ) ->
-            changeToRoute url model.key
+            changeToRoute model.config url model.key
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -93,25 +102,25 @@ view model =
     }
 
 
-changeToRoute : Url -> Key -> ( Model, Cmd Msg )
-changeToRoute url key =
+changeToRoute : Config -> Url -> Key -> ( Model, Cmd Msg )
+changeToRoute config url key =
     case Route.parseRoute url of
         Route.Room roomID ->
             let
                 ( roomModel, roomMsg ) =
-                    Room.init roomID
+                    Room.init roomID config.youtubeAPIKey
             in
-            updateWith Room GotRoomMsg { key = key, page = Room roomModel } ( roomModel, roomMsg )
+            updateWith Room GotRoomMsg { config = config, key = key, page = Room roomModel } ( roomModel, roomMsg )
 
         Route.Root ->
             let
                 ( homeModel, homeMsg ) =
                     Home.init key
             in
-            updateWith Home GotHomeMsg { key = key, page = Home homeModel } ( homeModel, homeMsg )
+            updateWith Home GotHomeMsg { config = config, key = key, page = Home homeModel } ( homeModel, homeMsg )
 
         _ ->
-            ( { key = key, page = NotFound }, Cmd.none )
+            ( { config = config, key = key, page = NotFound }, Cmd.none )
 
 
 
@@ -132,7 +141,7 @@ subscriptions model =
 ---- PROGRAM ----
 
 
-main : Program () Model Msg
+main : Program Config Model Msg
 main =
     Browser.application
         { init = init

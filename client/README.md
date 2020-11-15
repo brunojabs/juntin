@@ -1,3 +1,14 @@
+# Juntin - Watch together
+
+To run the project you will need to configure these 2 enviroment variables on the .env file:
+
+```
+ELM_APP_SOCKET_ADDRESS={The address for your backend (can be the one on you run on the server folder)}
+ELM_APP_YOUTUBE_API_KEY={A key for the youtube V3 API}
+```
+
+You can get a Youtube API key [here](https://developers.google.com/youtube/v3/getting-started#before-you-start)
+
 # Elm App
 
 This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).

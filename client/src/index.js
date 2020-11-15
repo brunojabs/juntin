@@ -6,7 +6,8 @@ import io from 'socket.io-client';
 import YouTubePlayer from 'youtube-player';
 
 var app = Elm.Main.init({
-  node: document.getElementById('root')
+  node: document.getElementById('root'),
+  flags: { 'youtubeAPIKey': process.env.ELM_APP_YOUTUBE_API_KEY }
 });
 
 // If you want your app to work offline and load faster, you can change
