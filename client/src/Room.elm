@@ -5,6 +5,7 @@ import ControlButton exposing (pauseButtonView, playButtonView)
 import Html exposing (Html, button, div, form, h3, img, input, label, li, text, ul)
 import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
+import Http
 import Json.Decode as D
 import Json.Encode as E
 import Logo exposing (logo, logoLoading)
@@ -39,6 +40,7 @@ type Msg
     | PauseVideo
     | RemoveVideo Int
     | ChangeVolume String
+    | GotVideoInfo (Result Http.Error Video)
 
 
 type BroadcastMsg
@@ -46,7 +48,7 @@ type BroadcastMsg
     | SendData Room
     | Play
     | Pause
-    | SendPlaylistItem String
+    | SendPlaylistItem Video
     | RemovePlaylistItem Int
 
 
@@ -61,28 +63,17 @@ type alias Room =
 
 type alias Video =
     { id : String
-    , loaded : Bool
-    , title : Maybe String
-    , thumbnail : Maybe String
-    }
-
-
-initVideo : String -> Video
-initVideo videoID =
-    { id = videoID
-    , loaded = False
-    , title = Nothing
-    , thumbnail = Nothing
+    , title : String
+    , thumbnail : String
     }
 
 
 videoDecoder : D.Decoder Video
 videoDecoder =
-    D.map4 Video
+    D.map3 Video
         (D.field "id" D.string)
-        (D.field "loaded" D.bool)
-        (D.field "title" (D.maybe D.string))
-        (D.field "thumbnail" (D.maybe D.string))
+        (D.field "title" D.string)
+        (D.field "thumbnail" D.string)
 
 
 initialModel : RoomID -> Model
@@ -103,8 +94,8 @@ initialRoom =
     }
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : String -> Msg -> Model -> ( Model, Cmd Msg )
+update youtubeAPIKey msg model =
     case ( model, msg ) of
         ( Joining roomID, JoinedRoom roomSize ) ->
             if roomSize == 1 then
@@ -156,16 +147,16 @@ update msg model =
                 Ok Pause ->
                     ( updateModelRoom { room | playerState = Paused } model, sendPlayerMessage Player.Pause )
 
-                Ok (SendPlaylistItem videoID) ->
+                Ok (SendPlaylistItem video) ->
                     let
                         cmd =
                             if List.isEmpty room.playlist then
-                                sendPlayerMessage (Player.LoadVideo videoID 0)
+                                sendPlayerMessage (Player.LoadVideo video.id 0)
 
                             else
                                 Cmd.none
                     in
-                    ( updateModelRoom { room | playlist = initVideo videoID :: room.playlist } model
+                    ( updateModelRoom { room | playlist = video :: room.playlist } model
                     , cmd
                     )
 
@@ -186,21 +177,8 @@ update msg model =
         ( Loaded { inputText, room, roomID }, AddVideo ) ->
             case Player.youtubeIdFromUrl inputText of
                 Just videoID ->
-                    let
-                        cmds =
-                            if List.isEmpty room.playlist then
-                                Cmd.batch
-                                    [ sendPlayerMessage (Player.LoadVideo videoID 0)
-                                    , sendData (encode roomID (SendPlaylistItem videoID))
-                                    ]
-
-                            else
-                                sendData (encode roomID (SendPlaylistItem videoID))
-                    in
-                    ( model
-                        |> updateModelInputText ""
-                        |> updateModelRoom { room | playlist = room.playlist ++ [ initVideo videoID ] }
-                    , cmds
+                    ( updateModelInputText "" model
+                    , getVideoInfo videoID youtubeAPIKey
                     )
 
                 Nothing ->
@@ -269,12 +247,32 @@ update msg model =
             , sendPlayerMessage (Player.SetVolume newVolume)
             )
 
+        ( Loaded { room, roomID }, GotVideoInfo result ) ->
+            case result of
+                Ok video ->
+                    let
+                        cmds =
+                            if List.isEmpty room.playlist then
+                                Cmd.batch
+                                    [ sendPlayerMessage (Player.LoadVideo video.id 0)
+                                    , sendData (encode roomID (SendPlaylistItem video))
+                                    ]
+
+                            else
+                                sendData (encode roomID (SendPlaylistItem video))
+                    in
+                    ( updateModelRoom { room | playlist = room.playlist ++ [ video ] } model, cmds )
+
+                Err _ ->
+                    -- TODO: Show an error message for the using saying something about the error
+                    ( model, Cmd.none )
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
 
-init : RoomID -> ( Model, Cmd Msg )
-init roomID =
+init : RoomID -> String -> ( Model, Cmd Msg )
+init roomID youtubeAPIKey =
     ( Joining roomID
     , joinRoom roomID
     )
@@ -399,7 +397,14 @@ playlistItemView currentVideoIndex index video =
                 , [ playlistRemoveView index ]
                 )
     in
-    li [ class currentClass ] ([ text video.id ] ++ removeButton)
+    li
+        [ class ("playlist__item " ++ currentClass)
+        ]
+        ([ img [ src video.thumbnail, class "playlist__thumbnail" ] []
+         , text video.title
+         ]
+            ++ removeButton
+        )
 
 
 playlistRemoveView index =
@@ -433,9 +438,8 @@ videoEnconder : Video -> E.Value
 videoEnconder video =
     E.object
         [ ( "id", E.string video.id )
-        , ( "loaded", E.bool video.loaded )
-        , ( "title", E.string (Maybe.withDefault "" video.title) )
-        , ( "thumbnail", E.string (Maybe.withDefault "" video.thumbnail) )
+        , ( "title", E.string video.title )
+        , ( "thumbnail", E.string video.thumbnail )
         ]
 
 
@@ -475,11 +479,13 @@ encode roomID broadcastMsg =
                 , ( "message", E.string "Pause" )
                 ]
 
-        SendPlaylistItem videoID ->
+        SendPlaylistItem video ->
             E.object
                 [ ( "data"
                   , E.object
-                        [ ( "videoID", E.string videoID )
+                        [ ( "id", E.string video.id )
+                        , ( "title", E.string video.title )
+                        , ( "thumbnail", E.string video.thumbnail )
                         ]
                   )
                 , ( "roomID", E.string roomID )
@@ -516,7 +522,7 @@ messageDecoder message =
             D.succeed Pause
 
         "SendPlaylistItem" ->
-            D.at [ "data", "videoID" ] D.string |> D.map SendPlaylistItem
+            D.field "data" videoDecoder |> D.map SendPlaylistItem
 
         "RemovePlaylistItem" ->
             D.at [ "data", "itemIndex" ] D.int |> D.map RemovePlaylistItem
@@ -612,3 +618,19 @@ removeVideoAt index playlist =
 
         _ :: rest ->
             List.take index playlist ++ rest
+
+
+responseVideoDecoder : D.Decoder Video
+responseVideoDecoder =
+    D.map3 Video
+        (D.field "items" (D.index 0 (D.field "id" D.string)))
+        (D.field "items" (D.index 0 (D.at [ "snippet", "title" ] D.string)))
+        (D.field "items" (D.index 0 (D.at [ "snippet", "thumbnails", "default", "url" ] D.string)))
+
+
+getVideoInfo : String -> String -> Cmd Msg
+getVideoInfo videoID youtubeAPIKey =
+    Http.get
+        { url = "https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" ++ videoID ++ "&key=" ++ youtubeAPIKey
+        , expect = Http.expectJson GotVideoInfo responseVideoDecoder
+        }
