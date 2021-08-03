@@ -1,13 +1,13 @@
-import './reset.css';
-import './main.css';
-import { Elm } from './Main.elm';
-import * as serviceWorker from './serviceWorker';
-import io from 'socket.io-client';
-import YouTubePlayer from 'youtube-player';
+import "./reset.css";
+import "./main.css";
+import { Elm } from "./Main.elm";
+import * as serviceWorker from "./serviceWorker";
+import { io } from "socket.io-client";
+import YouTubePlayer from "youtube-player";
 
-var app = Elm.Main.init({
-  node: document.getElementById('root'),
-  flags: { 'youtubeAPIKey': process.env.ELM_APP_YOUTUBE_API_KEY }
+const app = Elm.Main.init({
+  node: document.getElementById("root"),
+  flags: { youtubeAPIKey: process.env.ELM_APP_YOUTUBE_API_KEY },
 });
 
 // If you want your app to work offline and load faster, you can change
@@ -15,62 +15,65 @@ var app = Elm.Main.init({
 // Learn more about service workers: https://bit.ly/CRA-PWA
 serviceWorker.unregister();
 
+const socket = io(process.env.ELM_APP_SOCKET_ADDRESS, {});
 
-var socket = io(process.env.ELM_APP_SOCKET_ADDRESS);
-
-app.ports.sendData.subscribe(function(message) {
-  socket.emit('sendData', message);
+app.ports.sendData.subscribe(function (message) {
+  console.log("sendData", message);
+  socket.emit("sendData", message);
 });
 
 app.ports.joinRoom.subscribe(function (roomID) {
-  socket.emit('join', roomID)
+  console.log("join", roomID);
+  socket.emit("join", roomID);
 });
 
-socket.on('syncData', function(msg){
+socket.on("syncData", function (msg) {
   app.ports.dataReceiver.send(msg);
 });
 
-socket.on('joinedRoom', function(data) {
+socket.on("joinedRoom", function (data) {
+  console.log("joinedRoom", data);
   app.ports.joinedRoom.send(data);
 });
 
 let player = null;
 
-
-app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
-  if(!player) {
-    player = YouTubePlayer('player', { playerVars: { 'autoplay': 0, 'controls': 0 }});
-    player.on('stateChange', ({ data }) => {
+app.ports.emitPlayerMsg.subscribe(({ message, data }) => {
+  if (!player) {
+    player = YouTubePlayer("player", {
+      playerVars: { autoplay: 0, controls: 0 },
+    });
+    player.on("stateChange", ({ data }) => {
       app.ports.playerMsgReceiver.send(stateNames[data] || "");
     });
   }
 
-  switch(message) {
-    case 'play':
-        player.playVideo();
+  switch (message) {
+    case "play":
+      player.playVideo();
 
       break;
-    case 'pause':
-        player.pauseVideo()
+    case "pause":
+      player.pauseVideo();
 
       break;
-    case 'loadVideo':
+    case "loadVideo":
       // NOTE: LoadVideo loads the video and play it as soon as it is loaded
       player.loadVideoById(data.videoID, data.time);
 
       break;
-    case 'cueVideo':
+    case "cueVideo":
       // NOTE: CueVideo loads the video but don't start to play it
-      player.cueVideoById(data.videoID, data.time)
+      player.cueVideoById(data.videoID, data.time);
 
       break;
-    case 'getCurrentTime':
-      player.getCurrentTime().then(function(time) {
+    case "getCurrentTime":
+      player.getCurrentTime().then(function (time) {
         app.ports.playerCurrentTimeReceiver.send(time || 0.0);
       });
 
       break;
-    case 'setVolume':
+    case "setVolume":
       player.setVolume(data.value);
 
       break;
@@ -80,11 +83,10 @@ app.ports.emitPlayerMsg.subscribe( ({message, data}) =>  {
 });
 
 const stateNames = {
-  '-1': 'Unstarted',
-  0: 'Ended',
-  1: 'Playing',
-  2: 'Paused',
-  3: 'Buffering',
-  5: 'VideoCued'
+  "-1": "Unstarted",
+  0: "Ended",
+  1: "Playing",
+  2: "Paused",
+  3: "Buffering",
+  5: "VideoCued",
 };
-
