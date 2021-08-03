@@ -1,21 +1,22 @@
-const options = { origins: '*:*'}
-const io = require('socket.io')(options);
+const options = {
+  cors: {
+    origin: "*",
+  },
+};
 
-const port = process.env.PORT || 3000;
+const io = require("socket.io")(options);
 
-io.on('connection', function(socket) {
-  socket.on('join', function(roomID){
-    socket.join(roomID, () => {
-      let rooms = Object.keys(socket.rooms);
+const port = process.env.PORT || 3001;
 
-      socket.emit('joinedRoom', io.sockets.adapter.rooms[roomID].length);
+io.on("connection", function (socket) {
+  socket.on("join", function (roomID) {
+    socket.join(roomID);
 
-      console.log(rooms);
-    });
+    io.to(roomID).emit("joinedRoom", io.of("/").adapter.rooms.get(roomID).size);
   });
 
-  socket.on('sendData', function (data) {
-    socket.broadcast.to(data.roomID).emit('syncData', data);
+  socket.on("sendData", function (data) {
+    socket.to(data.roomID).emit("syncData", data);
   });
 });
 
