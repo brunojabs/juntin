@@ -156,7 +156,7 @@ update youtubeAPIKey msg model =
                             else
                                 Cmd.none
                     in
-                    ( updateModelRoom { room | playlist = video :: room.playlist } model
+                    ( updateModelRoom { room | playlist = room.playlist ++ [ video ] } model
                     , cmd
                     )
 
