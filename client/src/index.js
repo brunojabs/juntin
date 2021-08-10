@@ -18,12 +18,10 @@ serviceWorker.unregister();
 const socket = io(process.env.ELM_APP_SOCKET_ADDRESS, {});
 
 app.ports.sendData.subscribe(function (message) {
-  console.log("sendData", message);
   socket.emit("sendData", message);
 });
 
 app.ports.joinRoom.subscribe(function (roomID) {
-  console.log("join", roomID);
   socket.emit("join", roomID);
 });
 
@@ -32,7 +30,6 @@ socket.on("syncData", function (msg) {
 });
 
 socket.on("joinedRoom", function (data) {
-  console.log("joinedRoom", data);
   app.ports.joinedRoom.send(data);
 });
 
