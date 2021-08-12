@@ -4,7 +4,7 @@ import Array
 import ControlButton exposing (pauseButtonView, playButtonView)
 import Html exposing (Html, button, div, form, h3, img, input, label, li, text, ul)
 import Html.Attributes exposing (class, for, hidden, id, name, placeholder, src, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Events exposing (onClick, onDoubleClick, onInput, onSubmit)
 import Http
 import Json.Decode as D
 import Json.Encode as E
@@ -39,6 +39,7 @@ type Msg
     | PlayVideo
     | PauseVideo
     | RemoveVideo Int
+    | SkipToVideo Int
     | ChangeVolume String
     | GotVideoInfo (Result Http.Error Video)
 
@@ -49,6 +50,7 @@ type BroadcastMsg
     | Play
     | Pause
     | SendPlaylistItem Video
+    | SkipToPlaylistItem Int
     | RemovePlaylistItem Int
 
 
@@ -160,6 +162,18 @@ update youtubeAPIKey msg model =
                     , cmd
                     )
 
+                Ok (SkipToPlaylistItem videoIndex) ->
+                    case getVideoAt videoIndex room of
+                        Just newVideo ->
+                            ( updateModelRoom { room | currentVideoIndex = videoIndex } model
+                            , sendPlayerMessage <| Player.LoadVideo newVideo.id 0
+                            )
+
+                        Nothing ->
+                            ( model
+                            , Cmd.none
+                            )
+
                 Ok (RemovePlaylistItem videoIndex) ->
                     ( updateModelRoom { room | playlist = removeVideoAt videoIndex room.playlist } model
                     , Cmd.none
@@ -241,6 +255,21 @@ update youtubeAPIKey msg model =
             ( updateModelRoom { room | playlist = removeVideoAt videoIndex room.playlist } model
             , sendData (encode roomID (RemovePlaylistItem videoIndex))
             )
+
+        ( Loaded { room, roomID }, SkipToVideo videoIndex ) ->
+            case getVideoAt videoIndex room of
+                Just newVideo ->
+                    ( updateModelRoom { room | currentVideoIndex = videoIndex } model
+                    , Cmd.batch
+                        [ sendPlayerMessage <| Player.LoadVideo newVideo.id 0
+                        , sendData (encode roomID (SkipToPlaylistItem videoIndex))
+                        ]
+                    )
+
+                Nothing ->
+                    ( model
+                    , Cmd.none
+                    )
 
         ( Loaded { room }, ChangeVolume newVolume ) ->
             ( updateModelRoom { room | volume = newVolume } model
@@ -399,6 +428,7 @@ playlistItemView currentVideoIndex index video =
     in
     li
         [ class ("playlist__item " ++ currentClass)
+        , onDoubleClick (SkipToVideo index)
         ]
         ([ img [ src video.thumbnail, class "playlist__thumbnail" ] []
          , text video.title
@@ -492,6 +522,17 @@ encode roomID broadcastMsg =
                 , ( "message", E.string "SendPlaylistItem" )
                 ]
 
+        SkipToPlaylistItem itemIndex ->
+            E.object
+                [ ( "data"
+                  , E.object
+                        [ ( "itemIndex", E.int itemIndex )
+                        ]
+                  )
+                , ( "roomID", E.string roomID )
+                , ( "message", E.string "SkipToPlaylistItem" )
+                ]
+
         RemovePlaylistItem itemIndex ->
             E.object
                 [ ( "data"
@@ -523,6 +564,9 @@ messageDecoder message =
 
         "SendPlaylistItem" ->
             D.field "data" videoDecoder |> D.map SendPlaylistItem
+
+        "SkipToPlaylistItem" ->
+            D.at [ "data", "itemIndex" ] D.int |> D.map SkipToPlaylistItem
 
         "RemovePlaylistItem" ->
             D.at [ "data", "itemIndex" ] D.int |> D.map RemovePlaylistItem
